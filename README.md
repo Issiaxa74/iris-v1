@@ -1,4 +1,4 @@
-# Iris v1
+﻿# Iris v1
 
 Un modelo de lenguaje escrito **desde cero**: núcleo de tensores en C, entrenamiento en Julia, formato de modelo propio (UKJ) y runtime de inferencia en Rust. Sin PyTorch, sin transformers, sin dependencias de terceros en el camino del modelo.
 
@@ -210,6 +210,22 @@ Resultado del modelo incluido (674 muestras, 22 rutas): argmax 56,2 % en test, y
 - [ ] Entrenar de verdad: GPU o modelo mucho más pequeño (20–50 M)
 - [ ] TOJI completo (sectores, cables, neuronas anómalas) en cabrita
 - [ ] Sub-parámetros `p4-one` reales: hoy solo existen en la serialización
+
+## Artefactos incluidos
+
+Además del código, el repo trae lo que produjo el proyecto:
+
+| Ruta | Qué es |
+|---|---|
+| `models/router_v0.irrtr` | Router entrenado (F4c, 22 rutas, τ=0,85, exacto en val y test) |
+| `models/router_v0_f3_backup.irrtr` | Router F3 (16 rutas), conservado por trazabilidad |
+| `models/router_v0_f4d_backup.irrtr` | Router F4d descartado (precisión 94,7 % a τ=0,85) |
+| `data/router_data_f4c.tsv` | 674 muestras de entrenamiento del router (texto + ruta) |
+| `data/router_data_f4d.tsv` | 825 muestras del intento F4d |
+| `logs/` | Logs reales de los ciclos de entrenamiento |
+| `docs/especificaciones/` | Especificaciones originales (diseño, modelo, UKJ, TOJI, feedback, plan, pipeline, esquema de rutas) |
+
+**No incluido por tamaño:** el checkpoint `model_f4b.irmdl` (1,63 GB). GitHub rechaza archivos de más de 100 MB en el repo y el almacenamiento LFS gratuito es de 1 GB. Se regenera entrenando o se puede publicar como *release asset* (límite 2 GB por archivo). Tampoco se incluye el buffer de datos (320 MB de texto público, regenerable con `run_cycle.py`).
 
 ## Documentación
 

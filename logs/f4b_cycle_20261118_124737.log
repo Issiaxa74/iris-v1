@@ -1,0 +1,190 @@
+===== 2026-11-18 12:47:37 inicio: 120 min, 8 hilos, wrapper pid 13204 =====
+BPE vocab: 1056 | datasets: c4_es, fineweb_edu, wikipedia_es
+cursor: relance desde C:\Users\angel\OpenBot\Agents\agent-c0685ec3-0759-4b49-8380-223cbfa7986e\iris\julia\f4b_cursor.json
+modelo: checkpoint C:\Users\angel\OpenBot\Agents\agent-c0685ec3-0759-4b49-8380-223cbfa7986e\iris\model_f4b.irmdl (dim 1024 L14 vocab 16384 ctx 2048, 406976512 par)
+packing T=256 B=2 (512 tokens/paso) | ventana: 120.0 min
+--- ciclo en marcha (parada abrupta = se reanuda por cursor + ckpt) ---
+paso     7 | tok      3584 | 86.4 tok/s medio | 86.4 tok/s ult | loss 5.9482 | 0.7 min
+paso    16 | tok      8192 | 99.3 tok/s medio | 112.3 tok/s ult | loss 5.9002 | 1.4 min
+paso    24 | tok     12288 | 100.2 tok/s medio | 102.0 tok/s ult | loss 5.9277 | 2.0 min
+paso    31 | tok     15872 | 96.2 tok/s medio | 84.8 tok/s ult | loss 5.8915 | 2.7 min
+paso    38 | tok     19456 | 93.0 tok/s medio | 80.9 tok/s ult | loss 5.8818 | 3.5 min
+paso    45 | tok     23040 | 90.4 tok/s medio | 78.8 tok/s ult | loss 5.8629 | 4.2 min
+paso    53 | tok     27136 | 90.5 tok/s medio | 90.7 tok/s ult | loss 5.8617 | 5.0 min
+paso    61 | tok     31232 | 91.0 tok/s medio | 94.7 tok/s ult | loss 5.8635 | 5.7 min
+paso    69 | tok     35328 | 91.6 tok/s medio | 96.8 tok/s ult | loss 5.8704 | 6.4 min
+paso    77 | tok     39424 | 92.2 tok/s medio | 96.8 tok/s ult | loss 5.8578 | 7.1 min
+paso    85 | tok     43520 | 93.0 tok/s medio | 102.3 tok/s ult | loss 5.9008 | 7.8 min
+paso    93 | tok     47616 | 93.6 tok/s medio | 100.5 tok/s ult | loss 5.9320 | 8.5 min
+paso   101 | tok     51712 | 94.1 tok/s medio | 99.9 tok/s ult | loss 5.9268 | 9.2 min
+paso   109 | tok     55808 | 94.6 tok/s medio | 101.0 tok/s ult | loss 5.9221 | 9.8 min
+paso   118 | tok     60416 | 95.2 tok/s medio | 103.4 tok/s ult | loss 5.9102 | 10.6 min
+paso   127 | tok     65024 | 95.8 tok/s medio | 104.0 tok/s ult | loss 5.9093 | 11.3 min
+paso   136 | tok     69632 | 96.3 tok/s medio | 103.6 tok/s ult | loss 5.8999 | 12.1 min
+paso   144 | tok     73728 | 96.1 tok/s medio | 93.7 tok/s ult | loss 5.8976 | 12.8 min
+paso   153 | tok     78336 | 96.6 tok/s medio | 105.8 tok/s ult | loss 5.8917 | 13.5 min
+paso   161 | tok     82432 | 96.6 tok/s medio | 95.0 tok/s ult | loss 5.8870 | 14.2 min
+paso   171 | tok     87552 | 97.5 tok/s medio | 116.3 tok/s ult | loss 5.8969 | 15.0 min
+[ckpt] 902 s: modelo -> C:\Users\angel\OpenBot\Agents\agent-c0685ec3-0759-4b49-8380-223cbfa7986e\iris\model_f4b.irmdl
+paso   179 | tok     91648 | 97.5 tok/s medio | 97.6 tok/s ult | loss 5.8978 | 15.7 min
+paso   188 | tok     96256 | 98.1 tok/s medio | 109.9 tok/s ult | loss 5.8964 | 16.4 min
+paso   196 | tok    100352 | 98.0 tok/s medio | 97.5 tok/s ult | loss 5.8859 | 17.1 min
+paso   204 | tok    104448 | 97.9 tok/s medio | 94.7 tok/s ult | loss 5.8767 | 17.8 min
+paso   213 | tok    109056 | 98.2 tok/s medio | 104.6 tok/s ult | loss 5.8630 | 18.5 min
+paso   222 | tok    113664 | 98.7 tok/s medio | 113.2 tok/s ult | loss 5.8557 | 19.2 min
+paso   234 | tok    119808 | 100.3 tok/s medio | 141.8 tok/s ult | loss 5.8573 | 19.9 min
+paso   245 | tok    125440 | 101.5 tok/s medio | 139.3 tok/s ult | loss 5.8504 | 20.6 min
+paso   256 | tok    131072 | 102.7 tok/s medio | 139.1 tok/s ult | loss 5.8443 | 21.3 min
+paso   266 | tok    136192 | 103.5 tok/s medio | 127.1 tok/s ult | loss 5.8201 | 21.9 min
+paso   277 | tok    141824 | 104.5 tok/s medio | 136.0 tok/s ult | loss 5.8269 | 22.6 min
+paso   287 | tok    146944 | 104.8 tok/s medio | 115.3 tok/s ult | loss 5.8144 | 23.4 min
+paso   297 | tok    152064 | 105.3 tok/s medio | 120.9 tok/s ult | loss 5.8009 | 24.1 min
+paso   308 | tok    157696 | 106.0 tok/s medio | 129.9 tok/s ult | loss 5.7848 | 24.8 min
+paso   316 | tok    161792 | 105.9 tok/s medio | 101.8 tok/s ult | loss 5.7704 | 25.5 min
+paso   327 | tok    167424 | 106.1 tok/s medio | 113.1 tok/s ult | loss 5.7616 | 26.3 min
+paso   330 | tok    168960 | 104.3 tok/s medio | 36.0 tok/s ult | loss 5.7679 | 27.0 min
+paso   335 | tok    171520 | 103.3 tok/s medio | 63.9 tok/s ult | loss 5.7710 | 27.7 min
+paso   344 | tok    176128 | 103.4 tok/s medio | 108.3 tok/s ult | loss 5.7726 | 28.4 min
+paso   350 | tok    179200 | 102.7 tok/s medio | 73.0 tok/s ult | loss 5.7714 | 29.1 min
+paso   359 | tok    183808 | 102.9 tok/s medio | 111.3 tok/s ult | loss 5.7710 | 29.8 min
+[ckpt] 1806 s: modelo -> C:\Users\angel\OpenBot\Agents\agent-c0685ec3-0759-4b49-8380-223cbfa7986e\iris\model_f4b.irmdl
+paso   365 | tok    186880 | 102.2 tok/s medio | 73.8 tok/s ult | loss 5.7710 | 30.5 min
+paso   372 | tok    190464 | 102.0 tok/s medio | 89.5 tok/s ult | loss 5.7713 | 31.1 min
+paso   381 | tok    195072 | 102.0 tok/s medio | 106.2 tok/s ult | loss 5.7696 | 31.9 min
+paso   387 | tok    198144 | 101.5 tok/s medio | 74.1 tok/s ult | loss 5.7687 | 32.5 min
+paso   395 | tok    202240 | 101.4 tok/s medio | 100.8 tok/s ult | loss 5.7649 | 33.2 min
+paso   400 | tok    204800 | 100.5 tok/s medio | 57.5 tok/s ult | loss 5.7640 | 34.0 min
+paso   407 | tok    208384 | 100.1 tok/s medio | 84.0 tok/s ult | loss 5.7650 | 34.7 min
+paso   415 | tok    212480 | 100.0 tok/s medio | 93.8 tok/s ult | loss 5.7665 | 35.4 min
+paso   419 | tok    214528 | 98.7 tok/s medio | 42.1 tok/s ult | loss 5.7666 | 36.2 min
+paso   425 | tok    217600 | 97.9 tok/s medio | 62.8 tok/s ult | loss 5.7651 | 37.0 min
+paso   430 | tok    220160 | 97.3 tok/s medio | 63.4 tok/s ult | loss 5.7631 | 37.7 min
+paso   437 | tok    223744 | 97.1 tok/s medio | 87.6 tok/s ult | loss 5.7640 | 38.4 min
+paso   446 | tok    228352 | 97.4 tok/s medio | 109.3 tok/s ult | loss 5.7617 | 39.1 min
+paso   453 | tok    231936 | 96.9 tok/s medio | 73.0 tok/s ult | loss 5.7598 | 39.9 min
+paso   459 | tok    235008 | 96.4 tok/s medio | 73.0 tok/s ult | loss 5.7591 | 40.6 min
+paso   465 | tok    238080 | 96.1 tok/s medio | 73.2 tok/s ult | loss 5.7590 | 41.3 min
+paso   471 | tok    241152 | 95.7 tok/s medio | 74.3 tok/s ult | loss 5.7604 | 42.0 min
+paso   477 | tok    244224 | 95.2 tok/s medio | 67.2 tok/s ult | loss 5.7607 | 42.8 min
+paso   485 | tok    248320 | 95.1 tok/s medio | 92.8 tok/s ult | loss 5.7598 | 43.5 min
+paso   493 | tok    252416 | 95.1 tok/s medio | 93.2 tok/s ult | loss 5.7582 | 44.2 min
+paso   501 | tok    256512 | 95.0 tok/s medio | 90.9 tok/s ult | loss 5.7581 | 45.0 min
+[ckpt] 2710 s: modelo -> C:\Users\angel\OpenBot\Agents\agent-c0685ec3-0759-4b49-8380-223cbfa7986e\iris\model_f4b.irmdl
+paso   507 | tok    259584 | 94.7 tok/s medio | 73.4 tok/s ult | loss 5.7602 | 45.7 min
+paso   515 | tok    263680 | 94.7 tok/s medio | 95.5 tok/s ult | loss 5.7609 | 46.4 min
+paso   523 | tok    267776 | 94.7 tok/s medio | 93.9 tok/s ult | loss 5.7600 | 47.1 min
+paso   532 | tok    272384 | 94.9 tok/s medio | 107.9 tok/s ult | loss 5.7601 | 47.8 min
+paso   541 | tok    276992 | 95.1 tok/s medio | 110.9 tok/s ult | loss 5.7609 | 48.5 min
+paso   550 | tok    281600 | 95.2 tok/s medio | 101.5 tok/s ult | loss 5.7601 | 49.3 min
+paso   559 | tok    286208 | 95.4 tok/s medio | 109.0 tok/s ult | loss 5.7616 | 50.0 min
+paso   568 | tok    290816 | 95.6 tok/s medio | 107.1 tok/s ult | loss 5.7612 | 50.7 min
+paso   577 | tok    295424 | 95.7 tok/s medio | 105.4 tok/s ult | loss 5.7604 | 51.4 min
+paso   586 | tok    300032 | 95.9 tok/s medio | 112.0 tok/s ult | loss 5.7626 | 52.1 min
+paso   594 | tok    304128 | 96.0 tok/s medio | 99.3 tok/s ult | loss 5.7619 | 52.8 min
+paso   604 | tok    309248 | 96.3 tok/s medio | 119.7 tok/s ult | loss 5.7610 | 53.5 min
+paso   614 | tok    314368 | 96.7 tok/s medio | 124.1 tok/s ult | loss 5.7579 | 54.2 min
+paso   624 | tok    319488 | 97.0 tok/s medio | 124.1 tok/s ult | loss 5.7549 | 54.9 min
+paso   634 | tok    324608 | 97.3 tok/s medio | 124.3 tok/s ult | loss 5.7527 | 55.6 min
+paso   644 | tok    329728 | 97.7 tok/s medio | 124.7 tok/s ult | loss 5.7551 | 56.3 min
+paso   654 | tok    334848 | 98.0 tok/s medio | 126.3 tok/s ult | loss 5.7522 | 56.9 min
+paso   664 | tok    339968 | 98.3 tok/s medio | 124.4 tok/s ult | loss 5.7496 | 57.6 min
+paso   674 | tok    345088 | 98.6 tok/s medio | 123.7 tok/s ult | loss 5.7466 | 58.3 min
+paso   684 | tok    350208 | 98.9 tok/s medio | 124.1 tok/s ult | loss 5.7434 | 59.0 min
+paso   694 | tok    355328 | 99.2 tok/s medio | 121.7 tok/s ult | loss 5.7439 | 59.7 min
+[ckpt] 3611 s: modelo -> C:\Users\angel\OpenBot\Agents\agent-c0685ec3-0759-4b49-8380-223cbfa7986e\iris\model_f4b.irmdl
+paso   703 | tok    359936 | 99.3 tok/s medio | 107.6 tok/s ult | loss 5.7450 | 60.4 min
+paso   712 | tok    364544 | 99.4 tok/s medio | 110.4 tok/s ult | loss 5.7457 | 61.1 min
+paso   722 | tok    369664 | 99.7 tok/s medio | 119.7 tok/s ult | loss 5.7448 | 61.8 min
+paso   732 | tok    374784 | 99.9 tok/s medio | 123.5 tok/s ult | loss 5.7428 | 62.5 min
+paso   743 | tok    380416 | 100.2 tok/s medio | 128.5 tok/s ult | loss 5.7417 | 63.2 min
+paso   753 | tok    385536 | 100.5 tok/s medio | 127.4 tok/s ult | loss 5.7432 | 63.9 min
+paso   763 | tok    390656 | 100.8 tok/s medio | 127.5 tok/s ult | loss 5.7429 | 64.6 min
+paso   773 | tok    395776 | 101.1 tok/s medio | 125.8 tok/s ult | loss 5.7408 | 65.3 min
+paso   783 | tok    400896 | 101.3 tok/s medio | 125.9 tok/s ult | loss 5.7394 | 65.9 min
+paso   793 | tok    406016 | 101.6 tok/s medio | 125.4 tok/s ult | loss 5.7375 | 66.6 min
+paso   803 | tok    411136 | 101.8 tok/s medio | 124.9 tok/s ult | loss 5.7362 | 67.3 min
+paso   813 | tok    416256 | 102.0 tok/s medio | 123.9 tok/s ult | loss 5.7351 | 68.0 min
+paso   824 | tok    421888 | 102.3 tok/s medio | 131.9 tok/s ult | loss 5.7337 | 68.7 min
+paso   835 | tok    427520 | 102.7 tok/s medio | 137.4 tok/s ult | loss 5.7322 | 69.4 min
+paso   846 | tok    433152 | 103.0 tok/s medio | 135.6 tok/s ult | loss 5.7310 | 70.1 min
+paso   857 | tok    438784 | 103.3 tok/s medio | 133.7 tok/s ult | loss 5.7327 | 70.8 min
+paso   867 | tok    443904 | 103.5 tok/s medio | 125.2 tok/s ult | loss 5.7335 | 71.5 min
+paso   877 | tok    449024 | 103.7 tok/s medio | 124.3 tok/s ult | loss 5.7339 | 72.2 min
+paso   887 | tok    454144 | 103.9 tok/s medio | 125.9 tok/s ult | loss 5.7361 | 72.8 min
+paso   897 | tok    459264 | 104.1 tok/s medio | 123.8 tok/s ult | loss 5.7364 | 73.5 min
+paso   907 | tok    464384 | 104.3 tok/s medio | 123.2 tok/s ult | loss 5.7370 | 74.2 min
+paso   917 | tok    469504 | 104.5 tok/s medio | 123.2 tok/s ult | loss 5.7369 | 74.9 min
+[ckpt] 4515 s: modelo -> C:\Users\angel\OpenBot\Agents\agent-c0685ec3-0759-4b49-8380-223cbfa7986e\iris\model_f4b.irmdl
+paso   926 | tok    474112 | 104.5 tok/s medio | 105.8 tok/s ult | loss 5.7372 | 75.6 min
+paso   936 | tok    479232 | 104.6 tok/s medio | 118.2 tok/s ult | loss 5.7426 | 76.4 min
+paso   946 | tok    484352 | 104.8 tok/s medio | 123.0 tok/s ult | loss 5.7449 | 77.0 min
+paso   956 | tok    489472 | 104.9 tok/s medio | 121.5 tok/s ult | loss 5.7448 | 77.7 min
+paso   966 | tok    494592 | 105.1 tok/s medio | 122.0 tok/s ult | loss 5.7452 | 78.4 min
+paso   977 | tok    500224 | 105.3 tok/s medio | 131.1 tok/s ult | loss 5.7457 | 79.2 min
+paso   988 | tok    505856 | 105.5 tok/s medio | 130.9 tok/s ult | loss 5.7464 | 79.9 min
+paso   999 | tok    511488 | 105.8 tok/s medio | 129.5 tok/s ult | loss 5.7475 | 80.6 min
+paso  1010 | tok    517120 | 106.0 tok/s medio | 131.3 tok/s ult | loss 5.7481 | 81.3 min
+paso  1020 | tok    522240 | 106.2 tok/s medio | 127.5 tok/s ult | loss 5.7488 | 82.0 min
+paso  1030 | tok    527360 | 106.3 tok/s medio | 127.0 tok/s ult | loss 5.7487 | 82.7 min
+paso  1040 | tok    532480 | 106.4 tok/s medio | 115.7 tok/s ult | loss 5.7484 | 83.4 min
+paso  1048 | tok    536576 | 106.3 tok/s medio | 93.2 tok/s ult | loss 5.7491 | 84.1 min
+paso  1058 | tok    541696 | 106.5 tok/s medio | 126.9 tok/s ult | loss 5.7495 | 84.8 min
+paso  1068 | tok    546816 | 106.5 tok/s medio | 116.6 tok/s ult | loss 5.7494 | 85.5 min
+paso  1078 | tok    551936 | 106.7 tok/s medio | 119.4 tok/s ult | loss 5.7498 | 86.3 min
+paso  1088 | tok    557056 | 106.8 tok/s medio | 122.5 tok/s ult | loss 5.7499 | 86.9 min
+paso  1098 | tok    562176 | 106.9 tok/s medio | 116.3 tok/s ult | loss 5.7504 | 87.7 min
+paso  1108 | tok    567296 | 107.0 tok/s medio | 124.3 tok/s ult | loss 5.7511 | 88.4 min
+paso  1118 | tok    572416 | 107.1 tok/s medio | 121.7 tok/s ult | loss 5.7536 | 89.1 min
+paso  1129 | tok    578048 | 107.3 tok/s medio | 133.7 tok/s ult | loss 5.7548 | 89.8 min
+[ckpt] 5417 s: modelo -> C:\Users\angel\OpenBot\Agents\agent-c0685ec3-0759-4b49-8380-223cbfa7986e\iris\model_f4b.irmdl
+paso  1139 | tok    583168 | 107.4 tok/s medio | 120.2 tok/s ult | loss 5.7553 | 90.5 min
+paso  1147 | tok    587264 | 107.4 tok/s medio | 101.6 tok/s ult | loss 5.7549 | 91.2 min
+paso  1155 | tok    591360 | 107.3 tok/s medio | 95.9 tok/s ult | loss 5.7541 | 91.9 min
+paso  1165 | tok    596480 | 107.4 tok/s medio | 118.0 tok/s ult | loss 5.7526 | 92.6 min
+paso  1173 | tok    600576 | 107.2 tok/s medio | 91.5 tok/s ult | loss 5.7522 | 93.3 min
+paso  1183 | tok    605696 | 107.3 tok/s medio | 116.3 tok/s ult | loss 5.7522 | 94.1 min
+paso  1194 | tok    611328 | 107.5 tok/s medio | 128.5 tok/s ult | loss 5.7529 | 94.8 min
+paso  1203 | tok    615936 | 107.5 tok/s medio | 107.6 tok/s ult | loss 5.7562 | 95.5 min
+paso  1213 | tok    621056 | 107.6 tok/s medio | 122.0 tok/s ult | loss 5.7567 | 96.2 min
+paso  1223 | tok    626176 | 107.7 tok/s medio | 124.1 tok/s ult | loss 5.7569 | 96.9 min
+paso  1233 | tok    631296 | 107.8 tok/s medio | 115.3 tok/s ult | loss 5.7572 | 97.6 min
+paso  1242 | tok    635904 | 107.8 tok/s medio | 106.8 tok/s ult | loss 5.7567 | 98.4 min
+paso  1251 | tok    640512 | 107.8 tok/s medio | 109.2 tok/s ult | loss 5.7576 | 99.1 min
+paso  1259 | tok    644608 | 107.6 tok/s medio | 89.9 tok/s ult | loss 5.7597 | 99.8 min
+paso  1267 | tok    648704 | 107.6 tok/s medio | 97.6 tok/s ult | loss 5.7602 | 100.5 min
+paso  1275 | tok    652800 | 107.5 tok/s medio | 93.3 tok/s ult | loss 5.7609 | 101.3 min
+paso  1283 | tok    656896 | 107.3 tok/s medio | 92.0 tok/s ult | loss 5.7608 | 102.0 min
+paso  1292 | tok    661504 | 107.3 tok/s medio | 104.3 tok/s ult | loss 5.7608 | 102.7 min
+paso  1301 | tok    666112 | 107.3 tok/s medio | 108.3 tok/s ult | loss 5.7608 | 103.4 min
+paso  1310 | tok    670720 | 107.3 tok/s medio | 109.9 tok/s ult | loss 5.7603 | 104.1 min
+paso  1319 | tok    675328 | 107.4 tok/s medio | 113.2 tok/s ult | loss 5.7594 | 104.8 min
+[ckpt] 6321 s: modelo -> C:\Users\angel\OpenBot\Agents\agent-c0685ec3-0759-4b49-8380-223cbfa7986e\iris\model_f4b.irmdl
+paso  1327 | tok    679424 | 107.3 tok/s medio | 98.0 tok/s ult | loss 5.7623 | 105.5 min
+paso  1336 | tok    684032 | 107.3 tok/s medio | 105.4 tok/s ult | loss 5.7647 | 106.2 min
+paso  1345 | tok    688640 | 107.4 tok/s medio | 114.6 tok/s ult | loss 5.7654 | 106.9 min
+paso  1354 | tok    693248 | 107.4 tok/s medio | 114.4 tok/s ult | loss 5.7655 | 107.6 min
+paso  1364 | tok    698368 | 107.5 tok/s medio | 119.5 tok/s ult | loss 5.7658 | 108.3 min
+paso  1374 | tok    703488 | 107.6 tok/s medio | 118.8 tok/s ult | loss 5.7654 | 109.0 min
+paso  1384 | tok    708608 | 107.6 tok/s medio | 118.4 tok/s ult | loss 5.7659 | 109.7 min
+paso  1394 | tok    713728 | 107.7 tok/s medio | 117.8 tok/s ult | loss 5.7659 | 110.5 min
+paso  1404 | tok    718848 | 107.8 tok/s medio | 117.7 tok/s ult | loss 5.7657 | 111.2 min
+paso  1414 | tok    723968 | 107.8 tok/s medio | 116.3 tok/s ult | loss 5.7651 | 111.9 min
+paso  1423 | tok    728576 | 107.8 tok/s medio | 111.9 tok/s ult | loss 5.7654 | 112.6 min
+paso  1432 | tok    733184 | 107.9 tok/s medio | 114.8 tok/s ult | loss 5.7656 | 113.3 min
+paso  1441 | tok    737792 | 107.9 tok/s medio | 109.7 tok/s ult | loss 5.7650 | 114.0 min
+paso  1451 | tok    742912 | 107.9 tok/s medio | 115.6 tok/s ult | loss 5.7635 | 114.7 min
+paso  1461 | tok    748032 | 108.0 tok/s medio | 121.4 tok/s ult | loss 5.7619 | 115.4 min
+paso  1471 | tok    753152 | 108.1 tok/s medio | 121.3 tok/s ult | loss 5.7598 | 116.1 min
+paso  1481 | tok    758272 | 108.2 tok/s medio | 121.0 tok/s ult | loss 5.7638 | 116.8 min
+paso  1491 | tok    763392 | 108.3 tok/s medio | 120.5 tok/s ult | loss 5.7699 | 117.5 min
+paso  1501 | tok    768512 | 108.3 tok/s medio | 122.2 tok/s ult | loss 5.7703 | 118.2 min
+paso  1511 | tok    773632 | 108.4 tok/s medio | 120.6 tok/s ult | loss 5.7704 | 118.9 min
+paso  1521 | tok    778752 | 108.5 tok/s medio | 118.6 tok/s ult | loss 5.7705 | 119.7 min
+--- fin del ciclo ---
+pasos 1526 | tokens entrenados 781312 | 108.4 tok/s medio | loss medio 5.7708
+texto leido: 1.75 MB | 0.87 MB texto/h | RSS 7.34 GB
+  c4_es          servidos   232448 tok (29.8%) | chunk 0 linea 256 | bytes 0.52 MB
+  fineweb_edu    servidos   283648 tok (36.3%) | chunk 0 linea 224 | bytes 0.63 MB
+  wikipedia_es   servidos   265216 tok (33.9%) | chunk 0 linea 64 | bytes 0.60 MB
+OK f4b_cycle
+===== 2026-11-18 14:48:02 fin: codigo 0 =====

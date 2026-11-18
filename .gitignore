@@ -1,8 +1,8 @@
-# Modelos y artefactos entrenados (grandes, reproducibles con el código)
-models/
+# Modelos grandes (reproducibles con el código; el router entrenado sí se incluye)
+models/*.irmdl
+models/*.ukj
 *.irmdl
 *.ukj
-*.irrtr
 
 # Datos descargados
 datos/buffer/
@@ -24,7 +24,5 @@ __pycache__/
 *.obj
 *.pdb
 
-# Logs y temporales
-logs/
-*.log
+# Temporales
 *.tmp
