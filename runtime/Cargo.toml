@@ -1,0 +1,31 @@
+[package]
+name = "cabrita"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "CABRITA — runtime de Iris: lector UKJ con mmap parcial, tokenizer IRISTOK, router, memoria TOJI y reloj de terminal"
+license = "MIT"
+readme = "README.md"
+
+[dependencies]
+anyhow = "1.0"
+memmap2 = "0.9"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+zstd = "0.13"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Threading",
+] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+
+[[bin]]
+name = "cabrita"
+path = "src/main.rs"

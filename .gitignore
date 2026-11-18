@@ -1,0 +1,30 @@
+# Modelos y artefactos entrenados (grandes, reproducibles con el código)
+models/
+*.irmdl
+*.ukj
+*.irrtr
+
+# Datos descargados
+datos/buffer/
+datos/cursors/
+datos/*.json
+
+# Rust
+runtime/target/
+src/rust/ukj_reader/target/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Binarios compilados
+*.exe
+*.o
+*.obj
+*.pdb
+
+# Logs y temporales
+logs/
+*.log
+*.tmp

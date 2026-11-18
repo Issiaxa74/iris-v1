@@ -1,0 +1,6 @@
+# Entorno de Julia del proyecto (solo lo usa el pipeline de datos; el modelo
+# funciona con la stdlib). Uso:
+#   julia --project=. -e 'using Pkg; Pkg.instantiate()'
+#   julia --project=. src/julia/f4b_cycle.jl
+[deps]
+CodecZlib = "944b1d66-785c-5afd-91f1-9de20f533193"
