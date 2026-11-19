@@ -35,8 +35,7 @@ impl Tokenizer {
         let path = path.as_ref();
         let raw = fs::read(path)
             .with_context(|| format!("no se pudo leer el tokenizer {}", path.display()))?;
-        Self::from_bytes(&raw)
-            .with_context(|| format!("tokenizer inválido: {}", path.display()))
+        Self::from_bytes(&raw).with_context(|| format!("tokenizer inválido: {}", path.display()))
     }
 
     pub fn from_bytes(raw: &[u8]) -> Result<Self> {
@@ -56,7 +55,10 @@ impl Tokenizer {
         let n_merges = u32::from_le_bytes([raw[12], raw[13], raw[14], raw[15]]);
         let expected = 16usize + n_merges as usize * 8;
         if raw.len() != expected {
-            bail!("tamaño {} B no coincide con n_merges={n_merges} (esperado {expected} B)", raw.len());
+            bail!(
+                "tamaño {} B no coincide con n_merges={n_merges} (esperado {expected} B)",
+                raw.len()
+            );
         }
 
         let mut bytes_of: Vec<Vec<u8>> = (0u32..256).map(|b| vec![b as u8]).collect();
@@ -68,7 +70,9 @@ impl Tokenizer {
             let (ba, bb) = (bytes_of.get(a as usize), bytes_of.get(b as usize));
             let (ba, bb) = match (ba, bb) {
                 (Some(x), Some(y)) => (x.clone(), y.clone()),
-                _ => bail!("fusión #{i} referencia un id fuera del vocabulario previo (a={a}, b={b})"),
+                _ => bail!(
+                    "fusión #{i} referencia un id fuera del vocabulario previo (a={a}, b={b})"
+                ),
             };
             let mut merged = ba;
             merged.extend_from_slice(&bb);
@@ -136,7 +140,8 @@ impl Tokenizer {
 
     /// Bytes de un token, como String si es UTF-8 completo (para depuración).
     pub fn token_text(&self, id: u32) -> Option<String> {
-        self.token_bytes(id).map(|b| String::from_utf8_lossy(b).into_owned())
+        self.token_bytes(id)
+            .map(|b| String::from_utf8_lossy(b).into_owned())
     }
 }
 
@@ -274,6 +279,11 @@ mod tests {
         let t = tok();
         let s = "el usuario dijo que la programación en rust es interesante y que el préstamo de datos le cuesta";
         let ids = t.encode(s);
-        assert!(ids.len() < s.chars().count(), "esperaba compresión, {} tokens vs {} chars", ids.len(), s.chars().count());
+        assert!(
+            ids.len() < s.chars().count(),
+            "esperaba compresión, {} tokens vs {} chars",
+            ids.len(),
+            s.chars().count()
+        );
     }
 }

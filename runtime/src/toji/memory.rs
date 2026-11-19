@@ -8,7 +8,9 @@
 //! del sector. El motor definitivo puede sustituir `MemoryUpdater` sin cambiar
 //! el formato `.mem`.
 
-use crate::toji::{Border, Cable, Neuron, Sector, Satellite, CABLE_SIMILITUD, SAT_EMOTION, SAT_EVENT};
+use crate::toji::{
+    Border, Cable, Neuron, Satellite, Sector, CABLE_SIMILITUD, SAT_EMOTION, SAT_EVENT,
+};
 use crate::util::{now_unix, sector_name, words};
 
 const MAX_WORDS: usize = 16;
@@ -17,8 +19,22 @@ const MAX_ACTIVATED: usize = 8;
 const MAX_CABLES: usize = 6;
 
 const EMOTION_CUES: &[&str] = &[
-    "gracias", "genial", "increible", "mal", "fatal", "odio", "amo", "miedo", "error",
-    "enfadado", "molesto", "triste", "feliz", "orgulloso", "preocupado", "excelente",
+    "gracias",
+    "genial",
+    "increible",
+    "mal",
+    "fatal",
+    "odio",
+    "amo",
+    "miedo",
+    "error",
+    "enfadado",
+    "molesto",
+    "triste",
+    "feliz",
+    "orgulloso",
+    "preocupado",
+    "excelente",
 ];
 
 /// Neurona activada que se pasa al motor de respuesta.
@@ -45,14 +61,25 @@ pub struct MemoryView {
 impl MemoryView {
     #[allow(dead_code)] // constructor explícito usado por tests y por el motor sin TOJI
     pub fn empty(sector: impl Into<String>) -> Self {
-        MemoryView { sector: sector.into(), ..Default::default() }
+        MemoryView {
+            sector: sector.into(),
+            ..Default::default()
+        }
     }
 
     pub fn summary(&self) -> String {
         if self.activated.is_empty() {
-            format!("TOJI[{}]: {} neuronas, sin activación", self.sector, self.neurons_total)
+            format!(
+                "TOJI[{}]: {} neuronas, sin activación",
+                self.sector, self.neurons_total
+            )
         } else {
-            let top: Vec<&str> = self.activated.iter().take(4).map(|n| n.word.as_str()).collect();
+            let top: Vec<&str> = self
+                .activated
+                .iter()
+                .take(4)
+                .map(|n| n.word.as_str())
+                .collect();
             format!(
                 "TOJI[{}]: {} neuronas, {} cables, activas: {}",
                 self.sector,
@@ -71,7 +98,10 @@ pub struct MemoryUpdater {
 
 impl Default for MemoryUpdater {
     fn default() -> Self {
-        MemoryUpdater { max_words: MAX_WORDS, max_new_neurons: MAX_NEW_NEURONS }
+        MemoryUpdater {
+            max_words: MAX_WORDS,
+            max_new_neurons: MAX_NEW_NEURONS,
+        }
     }
 }
 
@@ -149,7 +179,12 @@ impl MemoryUpdater {
                 match sector.cables.iter_mut().find(|c| c.same_pair(a, b)) {
                     Some(c) => c.weight = (c.weight + 0.05).min(1.0),
                     None => {
-                        sector.cables.push(Cable { a, b, kind: CABLE_SIMILITUD, weight: 0.5 });
+                        sector.cables.push(Cable {
+                            a,
+                            b,
+                            kind: CABLE_SIMILITUD,
+                            weight: 0.5,
+                        });
                         made += 1;
                     }
                 }
@@ -199,7 +234,6 @@ impl MemoryUpdater {
     }
 }
 
-
 fn truncate(s: &str, max_bytes: usize) -> String {
     if s.len() <= max_bytes {
         return s.to_string();
@@ -235,7 +269,10 @@ mod tests {
         let v = up.absorb(&mut s, "rust ownership");
         assert_eq!(s.neurons.len(), before);
         assert_eq!(v.created_neurons, 0);
-        assert_eq!(v.satellites_added, 0, "el mismo texto no debe duplicar el satélite");
+        assert_eq!(
+            v.satellites_added, 0,
+            "el mismo texto no debe duplicar el satélite"
+        );
         assert!(s.cables.len() >= 1);
     }
 

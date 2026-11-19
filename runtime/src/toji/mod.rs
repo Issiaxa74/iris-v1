@@ -64,7 +64,11 @@ pub struct Neuron {
 
 impl Neuron {
     pub fn new(id: u32, id_str: impl Into<String>) -> Self {
-        Neuron { id, id_str: id_str.into(), satellites: Vec::new() }
+        Neuron {
+            id,
+            id_str: id_str.into(),
+            satellites: Vec::new(),
+        }
     }
 
     /// Fuerza acumulada de la neurona (suma de satélites, saturada en 1.0).
@@ -127,7 +131,12 @@ impl Sector {
     }
 
     pub fn next_id(&self) -> u32 {
-        self.neurons.iter().map(|n| n.id).max().map(|m| m + 1).unwrap_or(1)
+        self.neurons
+            .iter()
+            .map(|n| n.id)
+            .max()
+            .map(|m| m + 1)
+            .unwrap_or(1)
     }
 
     pub fn find_neuron(&self, id_str: &str) -> Option<usize> {
@@ -208,7 +217,9 @@ impl Sector {
         }
         // El checksum cubre todo menos los últimos 8 bytes.
         let body_len = bytes.len() - 8;
-        let computed = bytes[..body_len].iter().fold(0u64, |a, b| a.wrapping_add(*b as u64));
+        let computed = bytes[..body_len]
+            .iter()
+            .fold(0u64, |a, b| a.wrapping_add(*b as u64));
         let mut cb = [0u8; 8];
         cb.copy_from_slice(&bytes[body_len..]);
         let stored = u64::from_le_bytes(cb);
@@ -238,9 +249,18 @@ impl Sector {
                 let kind = r.u8()?;
                 let strength = r.f32()?;
                 let text = r.lp_str()?;
-                satellites.push(Satellite { t_epoch, kind, strength, text });
+                satellites.push(Satellite {
+                    t_epoch,
+                    kind,
+                    strength,
+                    text,
+                });
             }
-            neurons.push(Neuron { id, id_str, satellites });
+            neurons.push(Neuron {
+                id,
+                id_str,
+                satellites,
+            });
         }
         let mut anormals = Vec::with_capacity(n_anormals.min(1 << 20));
         for _ in 0..n_anormals {
@@ -252,7 +272,12 @@ impl Sector {
                 children.push(r.u32()?);
             }
             let nuance = r.lp_str()?;
-            anormals.push(Anormal { id, concept, children, nuance });
+            anormals.push(Anormal {
+                id,
+                concept,
+                children,
+                nuance,
+            });
         }
         let mut cables = Vec::with_capacity(n_cables.min(1 << 22));
         for _ in 0..n_cables {
@@ -267,9 +292,19 @@ impl Sector {
             let sector_a = r.lp_str()?;
             let sector_b = r.lp_str()?;
             let weight = r.f32()?;
-            borders.push(Border { sector_a, sector_b, weight });
+            borders.push(Border {
+                sector_a,
+                sector_b,
+                weight,
+            });
         }
-        Ok(Sector { name, neurons, anormals, cables, borders })
+        Ok(Sector {
+            name,
+            neurons,
+            anormals,
+            cables,
+            borders,
+        })
     }
 
     /// Fusiona otro sector del mismo nombre: une neuronas por palabra, suma
@@ -295,7 +330,11 @@ impl Sector {
                 None => {
                     let id = self.next_id();
                     remap.insert(inc.id, id);
-                    self.neurons.push(Neuron { id, id_str: inc.id_str.clone(), satellites: inc.satellites.clone() });
+                    self.neurons.push(Neuron {
+                        id,
+                        id_str: inc.id_str.clone(),
+                        satellites: inc.satellites.clone(),
+                    });
                     stats.neurons_added += 1;
                 }
             }
@@ -305,11 +344,20 @@ impl Sector {
                 (Some(a), Some(b)) => (*a, *b),
                 _ => continue,
             };
-            if let Some(existing) = self.cables.iter_mut().find(|c| c.same_pair(a, b) && c.kind == inc.kind) {
+            if let Some(existing) = self
+                .cables
+                .iter_mut()
+                .find(|c| c.same_pair(a, b) && c.kind == inc.kind)
+            {
                 existing.weight = (existing.weight + inc.weight).min(1.0);
                 stats.cables_merged += 1;
             } else {
-                self.cables.push(Cable { a, b, kind: inc.kind, weight: inc.weight });
+                self.cables.push(Cable {
+                    a,
+                    b,
+                    kind: inc.kind,
+                    weight: inc.weight,
+                });
                 stats.cables_added += 1;
             }
         }
@@ -333,8 +381,18 @@ impl Sector {
                 }
                 None => {
                     let mut a = inc.clone();
-                    a.id = self.anormals.iter().map(|x| x.id).max().map(|m| m + 1).unwrap_or(1);
-                    a.children = inc.children.iter().filter_map(|c| remap.get(c).copied()).collect();
+                    a.id = self
+                        .anormals
+                        .iter()
+                        .map(|x| x.id)
+                        .max()
+                        .map(|m| m + 1)
+                        .unwrap_or(1);
+                    a.children = inc
+                        .children
+                        .iter()
+                        .filter_map(|c| remap.get(c).copied())
+                        .collect();
                     self.anormals.push(a);
                     stats.anormals_added += 1;
                 }
@@ -350,7 +408,11 @@ impl Sector {
             }) {
                 Some(b) => b.weight = b.weight.max(inc.weight),
                 None => {
-                    self.borders.push(Border { sector_a: inc.sector_a.clone(), sector_b: inc.sector_b.clone(), weight: inc.weight });
+                    self.borders.push(Border {
+                        sector_a: inc.sector_a.clone(),
+                        sector_b: inc.sector_b.clone(),
+                        weight: inc.weight,
+                    });
                     stats.borders_added += 1;
                 }
             }
@@ -379,7 +441,10 @@ pub struct MemStore {
 
 impl MemStore {
     pub fn new(dir: impl Into<PathBuf>, compress: bool) -> Self {
-        MemStore { dir: dir.into(), compress }
+        MemStore {
+            dir: dir.into(),
+            compress,
+        }
     }
 
     pub fn dir(&self) -> &Path {
@@ -387,7 +452,8 @@ impl MemStore {
     }
 
     pub fn path_for(&self, sector: &str) -> PathBuf {
-        self.dir.join(format!("{}.mem", crate::util::sector_name(sector)))
+        self.dir
+            .join(format!("{}.mem", crate::util::sector_name(sector)))
     }
 
     /// Carga un sector; si no existe devuelve uno vacío (nunca falla por ausencia).
@@ -396,8 +462,8 @@ impl MemStore {
         if !path.exists() {
             return Ok(Sector::new(crate::util::sector_name(sector)));
         }
-        let raw = std::fs::read(&path)
-            .with_context(|| format!("no se pudo leer {}", path.display()))?;
+        let raw =
+            std::fs::read(&path).with_context(|| format!("no se pudo leer {}", path.display()))?;
         Sector::from_bytes(&raw)
             .with_context(|| format!("sector TOJI corrupto: {}", path.display()))
     }
@@ -482,7 +548,10 @@ impl<'a> Reader<'a> {
     fn take(&mut self, n: usize) -> Result<&'a [u8]> {
         let end = self.pos.checked_add(n).context("longitud desbordada")?;
         if end > self.buf.len() {
-            bail!("archivo .mem truncado en offset {} (faltaban {n} B)", self.pos);
+            bail!(
+                "archivo .mem truncado en offset {} (faltaban {n} B)",
+                self.pos
+            );
         }
         let s = &self.buf[self.pos..end];
         self.pos = end;
@@ -527,13 +596,37 @@ mod tests {
     fn sample_sector() -> Sector {
         let mut s = Sector::new("programacion");
         let mut n = Neuron::new(1, "rust");
-        n.satellites.push(Satellite { t_epoch: 1_700_000_000, kind: SAT_EVENT, strength: 0.7, text: "el usuario compiló cabrita".into() });
-        n.satellites.push(Satellite { t_epoch: 1_700_000_010, kind: SAT_EMOTION, strength: 0.4, text: "le gustó el resultado".into() });
+        n.satellites.push(Satellite {
+            t_epoch: 1_700_000_000,
+            kind: SAT_EVENT,
+            strength: 0.7,
+            text: "el usuario compiló cabrita".into(),
+        });
+        n.satellites.push(Satellite {
+            t_epoch: 1_700_000_010,
+            kind: SAT_EMOTION,
+            strength: 0.4,
+            text: "le gustó el resultado".into(),
+        });
         s.neurons.push(n);
         s.neurons.push(Neuron::new(2, "compilador"));
-        s.anormals.push(Anormal { id: 1, concept: "poseer".into(), children: vec![1, 2], nuance: "tener de forma estable".into() });
-        s.cables.push(Cable { a: 1, b: 2, kind: CABLE_SIMILITUD, weight: 0.5 });
-        s.borders.push(Border { sector_a: "programacion".into(), sector_b: "general".into(), weight: 0.5 });
+        s.anormals.push(Anormal {
+            id: 1,
+            concept: "poseer".into(),
+            children: vec![1, 2],
+            nuance: "tener de forma estable".into(),
+        });
+        s.cables.push(Cable {
+            a: 1,
+            b: 2,
+            kind: CABLE_SIMILITUD,
+            weight: 0.5,
+        });
+        s.borders.push(Border {
+            sector_a: "programacion".into(),
+            sector_b: "general".into(),
+            weight: 0.5,
+        });
         s
     }
 
@@ -576,10 +669,20 @@ mod tests {
         let mut a = sample_sector();
         let mut b = Sector::new("programacion");
         let mut n = Neuron::new(7, "rust");
-        n.satellites.push(Satellite { t_epoch: 1_700_000_020, kind: SAT_EVENT, strength: 0.6, text: "segunda conversación".into() });
+        n.satellites.push(Satellite {
+            t_epoch: 1_700_000_020,
+            kind: SAT_EVENT,
+            strength: 0.6,
+            text: "segunda conversación".into(),
+        });
         b.neurons.push(n);
         b.neurons.push(Neuron::new(8, "ownership"));
-        b.cables.push(Cable { a: 7, b: 8, kind: CABLE_SIMILITUD, weight: 0.4 });
+        b.cables.push(Cable {
+            a: 7,
+            b: 8,
+            kind: CABLE_SIMILITUD,
+            weight: 0.4,
+        });
         let stats = a.merge(&b);
         assert_eq!(stats.neurons_added, 1);
         assert_eq!(stats.satellites_added, 1);

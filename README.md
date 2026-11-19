@@ -1,10 +1,10 @@
-﻿# Iris v1
+# Iris v1
 
 Un modelo de lenguaje escrito **desde cero**: núcleo de tensores en C, entrenamiento en Julia, formato de modelo propio (UKJ) y runtime de inferencia en Rust. Sin PyTorch, sin transformers, sin dependencias de terceros en el camino del modelo.
 
 Este repositorio contiene **todo el código del proyecto** y un manual para que cualquiera lo reproduzca y lo entrene en su propia máquina.
 
-> **Estado honesto:** Iris **todavía no habla**. La infraestructura está completa y verificada (modelo, tokenizador, router, formato UKJ, runtime), pero el modelo solo ha visto ~1,3 millones de tokens y su loss está en 5,77 (perplejidad ≈ 320). Producirá texto incoherente. Los números y los límites están en [Estado real](#estado-real-y-por-qué-no-habla-todavía).
+> **Estado honesto:** Iris **todavía no habla**. La infraestructura está completa y verificada (modelo, tokenizador, router, formato UKJ, runtime con forward real y caché KV), pero el modelo solo ha visto ~1,3 millones de tokens y su loss media acumulada es 5,77 (perplejidad ≈ 320). Producirá texto incoherente (`e e e e`). Los números y los límites están en [Estado real](#estado-real-y-por-qué-no-habla-todavía).
 
 ---
 
@@ -20,7 +20,7 @@ Iris es una arquitectura pensada para crecer por **rutas de conocimiento** en lu
 | **BPE** | Tokenizador propio por bytes, 1056 tokens | Funcional |
 | **UKJ** | Formato contenedor propio (tipo GGUF) con tabla de rutas y mmap | Escritor Julia + lectores Rust y C |
 | **TOJI** | Memoria viva por sectores (`.mem`) | Especificado y con implementación base en el runtime |
-| **cabrita** | REPL/runtime en Rust que lee UKJ y conversa | 52 tests propios (según `runtime/README.md`) |
+| **cabrita** | REPL/runtime en Rust que lee UKJ y conversa | Forward real con caché KV, 57 tests propios |
 
 La idea de los sub-parámetros (`p4-one`: 4 sub-parámetros comprimidos por parámetro, que se liberan bajo estrés) está especificada en [docs/UKJ.md](docs/UKJ.md) y [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md); hoy el modelo entrena en fp32 plano y la cuantización solo existe al serializar.
 
@@ -46,9 +46,9 @@ Tres defectos conocidos que frenan el entrenamiento y están sin arreglar:
 
 1. **Vocabulario sobredimensionado.** El tokenizador usa 1056 ids pero el modelo reserva 16384. El 94 % de la matriz de logits y de los embeddings es lastre: reducir `vocab` a 1056 ahorra ~15,7 M de parámetros y acelera el GEMM más grande del forward ~15×.
 2. **Las 16 hojas y el bloque `sft` no se usan.** Ocupan 213.979.136 parámetros (53 % del checkpoint) que nunca entran en el forward ni reciben gradiente. El modelo que realmente corre es un transformer de 14 capas.
-3. **Sin caché KV.** Cada token generado repite el forward completo (O(T²)). Suficiente para probar; inservible para conversación larga.
+3. **El muestreador de Julia no tiene caché KV.** Cada token generado repite el forward completo (O(T²)); el runtime `cabrita` sí la tiene y genera en O(T).
 
-La loss se quedó plana en 5,77 durante la última hora del último ciclo; no está diagnosticado (candidatos: learning rate, falta de datos, calibración de Adam).
+La media acumulada de la loss terminó en 5,77. El ciclo imprime la media desde el inicio, no la loss por paso, así que no se puede afirmar que se estancara: falta instrumentar la loss por ventana. Si de verdad se estanca, los candidatos son learning rate, datos y calibración de Adam.
 
 ## Estructura del repositorio
 
@@ -65,13 +65,13 @@ docs/                  arquitectura, formato UKJ, datos, router, TOJI, estado
 ## Requisitos
 
 - **Julia 1.10+** (probado en 1.13.3) con el paquete `CodecZlib` (solo el pipeline de datos)
-- **Python 3.10+** con `pyarrow`, `fsspec`, `requests`, `zstandard`
+- **Python 3.10+** con `pyarrow` y `fsspec`
 - **Rust 1.75+** (solo runtime y lector UKJ)
 - **GCC/Clang o MSVC** (solo núcleo C)
 - 8 GB de RAM libres para entrenar el modelo completo; ~2 GB para inferir
 
 ```powershell
-julia -e 'using Pkg; Pkg.add("CodecZlib")'
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
 pip install -r requirements.txt
 ```
 
@@ -90,11 +90,21 @@ julia src/julia/test_writer.jl
 # 4. Generar texto con un checkpoint (ver "Entrenar" si aún no tienes uno)
 $env:IRIS_CKPT="models/model.irmdl"
 julia src/julia/generate.jl --prompt "El cielo es" --tokens 40 --temp 0.9
+
+# 5. O con el runtime (caché KV): exporta a UKJ y arranca cabrita
+julia src/julia/export_ukj.jl models\model.irmdl models\model.ukj
+cd runtime
+cargo run --release -- --engine transformer --model ..\models\model.ukj --tok ..\assets\iris.tok --ask "El cielo es"
 ```
 
 Si no tienes checkpoint, `generate.jl` falla con un mensaje claro: primero entrena (siguiente sección) o crea uno aleatorio con `julia src/julia/model_test.jl` y `save_model`.
 
 ## Manual: entrenar el modelo desde cero
+
+El manual completo —requisitos, contrato del buffer, hiperparámetros, diagnóstico,
+exportación, inferencia y recetas para escalar— está en
+[**docs/ENTRENAMIENTO.md**](docs/ENTRENAMIENTO.md). Esta sección es el resumen
+ejecutivo.
 
 ### 1. Entender el dato que come
 
@@ -114,7 +124,9 @@ Todos son públicos y se leen **sin descargar el dataset entero**: el pipeline p
 
 ```powershell
 # Lee ~2 h de datos y deja chunks jsonl.gz filtrados en datos/buffer/<dataset>/
-python src/python/run_cycle.py --minutos 120 --buffer datos/buffer
+$env:IRIS_BUFFER="$PWD\datos\buffer"
+$env:IRIS_CURSORS="$PWD\datos\cursors"
+python src/python/run_cycle.py 7200      # el argumento son segundos, no minutos
 ```
 
 - Chunks de 20 000 filas (~35 MB) comprimidos con gzip determinista.
@@ -129,10 +141,10 @@ $env:IRIS_TOK="$PWD\assets\iris.tok"
 New-Item -ItemType Directory -Force models | Out-Null
 
 # ciclo de 2 h; guarda checkpoint cada 15 min y cursor cada 5
-julia src/julia/f4b_cycle.jl 120 models\model.irmdl src\julia\f4b_cursor.json
+julia --project=. src/julia/f4b_cycle.jl 120 models\model.irmdl src\julia\f4b_cursor.json
 ```
 
-Qué hace cada paso: toma el dataset con menor `(tokens servidos / peso)`, tokeniza con BPE, empaqueta en secuencias de T=256, entrena micro-batches de B=2 y aplica Adam **solo a los parámetros entrenables de la fase 1** (trunk + embeddings + LN final + la hoja activa + `sft`; hoy el forward solo usa el trunk). Al terminar un chunk lo borra y avanza el cursor.
+Qué hace cada paso: toma el dataset con menor `(tokens servidos / peso)`, tokeniza con BPE, empaqueta en secuencias de T=256, entrena micro-batches de B=2 y aplica AdamW **solo a los parámetros entrenables de la fase 1** (trunk + una hoja + `sft`). En la práctica solo el trunk recibe gradiente: las hojas y `sft` no entran en el forward. Al terminar un chunk lo borra y avanza el cursor.
 
 Para reanudar: relanza el mismo comando; el checkpoint y el cursor mandan. Para ciclos encadenados, programa el comando cada 2 h (Programador de tareas en Windows, `cron` en Linux).
 
@@ -165,9 +177,9 @@ El script agrupa los tensores en 18 rutas (trunk, 16 hojas, sft), escribe la tab
 # muestreador de referencia en Julia (sin caché KV)
 julia src/julia/generate.jl --prompt "Habia una vez" --tokens 60 --temp 0.8 --top-p 0.95
 
-# runtime cabrita (Rust): carga UKJ con mmap y REPL con /si /no /up /ent-my
+# runtime cabrita (Rust): forward real con caché KV y REPL con /si /no /up /ent-my
 cd runtime
-cargo run --release -- --ukj ..\models\model.ukj --tok ..\assets\iris.tok
+cargo run --release -- --engine transformer --model ..\models\model.ukj --tok ..\assets\iris.tok
 ```
 
 ## Entrenar el router
@@ -175,16 +187,15 @@ cargo run --release -- --ukj ..\models\model.ukj --tok ..\assets\iris.tok
 El router decide a qué ruta de conocimiento mandar una petición. Es independiente del modelo grande: bag-of-embeddings sobre el texto + MLP, 110 358 parámetros, formato `IRISRTR`.
 
 ```powershell
-# 1. construir el TSV de muestras (pregunta<TAB>etiqueta) desde tus pares
-#    el extractor de ejemplo lee Shared/IRIS_DESTILADO y produce prompts+respuestas
-julia src/julia/router_extractor.jl
+# 1. el TSV de 674 muestras ya está en data/router_data_f4c.tsv;
+#    router_extractor.jl regenera desde Shared/IRIS_DESTILADO, que no se incluye
 
-# 2. entrenar y evaluar: split 70/15/15, 10 semillas, seleccion por cobertura
-#    val a tau=0.6 con precision >= 0.98
-julia src/julia/router_test.jl src\julia\router_data_f4c.tsv router_v0.irrtr
+# 2. entrenar y evaluar: split 70/15/15, 10 semillas, selección por cobertura
+#    val a tau=0.6 con precision >= 0.98 (no sobrescribe el artifact incluido)
+julia src/julia/router_test.jl data\router_data_f4c.tsv models\router_v0_retrained.irrtr
 
-# 3. barrido de tau sobre el artifact ya entrenado
-julia src/julia/router_tau_sweep.jl src\julia\router_data_f4c.tsv router_v0.irrtr
+# 3. barrido de tau sobre el artifact incluido, sin entrenar
+julia src/julia/router_tau_sweep.jl data\router_data_f4c.tsv models\router_v0.irrtr
 ```
 
 Resultado del modelo incluido (674 muestras, 22 rutas): argmax 56,2 % en test, y con **τ=0,85 grabado en el artifact**: 28/28 en validación y 29/29 en test, cobertura 29 %, texto sin sentido → ruta genérica. Detalles y límites en [docs/ROUTER.md](docs/ROUTER.md).
@@ -200,13 +211,16 @@ Resultado del modelo incluido (674 muestras, 22 rutas): argmax 56,2 % en test, y
 | Ciclo de 2 h | 781 312 tokens | 1,75 MB de texto |
 | Núcleo C | 19/19 tests | GEMM, LN, atención, máscara causal |
 | Router | 22 rutas, 0,42 MB | exacto a τ=0,85 |
+| Inferencia cabrita | ~19 tok/s | checkpoint real, 14 capas, 736 MB en RAM |
+| Tests runtime | 50 unitarias + 7 integración | 0 fallos |
 
 ## Limitaciones y trabajo pendiente
 
 - [ ] Reducir `vocab` de 16384 a 1056 (ahorro ~16 M par y ~15× en el GEMM de logits)
 - [ ] Conectar las hojas al forward (hoy son peso muerto) o eliminarlas del layout
-- [ ] Caché KV en el runtime para generación O(T) en vez de O(T²)
-- [ ] Diagnosticar la loss plana en 5,77 (lr / datos / Adam)
+- [x] Caché KV en el runtime para generación O(T) en vez de O(T²)
+- [ ] Instrumentar la loss por ventana (la media acumulada no diagnostica)
+- [ ] Diagnosticar la posible meseta de la loss (lr / datos / Adam)
 - [ ] Entrenar de verdad: GPU o modelo mucho más pequeño (20–50 M)
 - [ ] TOJI completo (sectores, cables, neuronas anómalas) en cabrita
 - [ ] Sub-parámetros `p4-one` reales: hoy solo existen en la serialización
@@ -224,6 +238,7 @@ Además del código, el repo trae lo que produjo el proyecto:
 | `data/router_data_f4d.tsv` | 825 muestras del intento F4d |
 | `logs/` | Logs reales de los ciclos de entrenamiento |
 | `docs/especificaciones/` | Especificaciones originales (diseño, modelo, UKJ, TOJI, feedback, plan, pipeline, esquema de rutas) |
+| `runtime/assets/tiny.ukj` | Fixture de 199 808 parámetros para el test golden Julia ↔ Rust |
 
 **No incluido por tamaño:** el checkpoint `model_f4b.irmdl` (1,63 GB). GitHub rechaza archivos de más de 100 MB en el repo y el almacenamiento LFS gratuito es de 1 GB. Se regenera entrenando o se puede publicar como *release asset* (límite 2 GB por archivo). Tampoco se incluye el buffer de datos (320 MB de texto público, regenerable con `run_cycle.py`).
 
@@ -235,6 +250,8 @@ Además del código, el repo trae lo que produjo el proyecto:
 - [Router](docs/ROUTER.md) — arquitectura, entrenamiento, calibración de τ
 - [TOJI](docs/TOJI.md) — memoria viva por sectores
 - [Estado y medidas](docs/ESTADO.md) — resultados completos de cada fase
+- [**Manual de entrenamiento**](docs/ENTRENAMIENTO.md) — datos, entrenamiento, export UKJ e inferencia
+- [**Guía para agentes de IA**](docs/AGENTES.md) — playbooks, reglas y puertas de verificación
 
 ## Licencia
 

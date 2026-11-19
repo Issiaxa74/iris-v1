@@ -1,4 +1,4 @@
-﻿# router_test.jl — Iris F3: test del router clasificador
+# router_test.jl — Iris F3: test del router clasificador
 # Uso: julia router_test.jl [datos.tsv] [salida.irrtr]   (desde iris/julia)
 # 1) carga TSV de muestras, 2) forward independiente vs router_loss_grad!,
 # 3) gradiente numerico vs analitico por grupo, 4) entrena 10 semillas con
@@ -202,11 +202,12 @@ function train_one(cfg, names, batch0, keep, va_b, seed; MAXSTEPS = 3000, EVAL =
 end
 
 function main()
-    tok = BPE.load_tok(joinpath(@__DIR__, "..", "iris.tok"))
+    raiz = normpath(@__DIR__, "..", "..")
+    tok = BPE.load_tok(joinpath(raiz, "assets", "iris.tok"))
     V = Int(BPE.vocab_size(tok))
     @printf("BPE vocab: %d\n", V)
 
-    datafile = length(ARGS) >= 1 ? (isabspath(ARGS[1]) ? ARGS[1] : joinpath(@__DIR__, ARGS[1])) : joinpath(@__DIR__, "router_data.tsv")
+    datafile = length(ARGS) >= 1 ? abspath(ARGS[1]) : joinpath(raiz, "data", "router_data_f4c.tsv")
     rows = read_tsv(datafile)
     @printf("filas TSV: %d\n", length(rows))
     names, freq = class_order([r[1] for r in rows])
@@ -326,7 +327,7 @@ function main()
     @printf("  p max media: val %.3f | nonsense %.3f\n", mean(pv), r.p)
 
     println("[5/5] save/load IRISRTR")
-    path = length(ARGS) >= 2 ? (isabspath(ARGS[2]) ? ARGS[2] : joinpath(@__DIR__, "..", ARGS[2])) : joinpath(@__DIR__, "..", "router_v0.irrtr")
+    path = length(ARGS) >= 2 ? abspath(ARGS[2]) : joinpath(raiz, "models", "router_v0.irrtr")
     save_router(path, rt)
     rt2 = load_router(path)
     @assert isequal(rt.p, rt2.p) "save/load no bit-exacto"

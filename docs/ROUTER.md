@@ -30,8 +30,17 @@ Formato del TSV: una línea por muestra, `texto<TAB>ruta`. El split es 70/15/15.
 ## 3. Entrenamiento y selección
 
 ```powershell
-julia src/julia/router_test.jl src/julia/router_data_f4c.tsv router_v0.irrtr
+# reentrena desde el TSV incluido; escribe un artifact nuevo para no pisar el publicado
+julia src/julia/router_test.jl data\router_data_f4c.tsv models\router_v0_retrained.irrtr
+
+# barre tau sobre el artifact incluido, sin entrenar
+julia src/julia/router_tau_sweep.jl data\router_data_f4c.tsv models\router_v0.irrtr
 ```
+
+Los datos viven en `data/` y los artifacts en `models/`. `src/julia/router_extractor.jl`
+y `src/julia/router_buffer_extract.jl` regeneran los TSV desde corpus externos
+(`Shared/IRIS_DESTILADO` y chunks del buffer F4b) que **no se incluyen** en el
+repositorio; sin esos corpus fallan con un mensaje explícito.
 
 - 10 semillas, lr 0,003, early stop con paciencia.
 - Dentro de cada semilla se elige el snapshot con **máxima cobertura en validación a τ=0,6 sujeta a precisión ≥ 0,98**; si ninguno la cumple, gana el de menor loss de validación.

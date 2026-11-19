@@ -43,30 +43,93 @@ const RULES: &[AmbiguityRule] = &[AmbiguityRule {
         "norteamerica",
         "norteamericano",
     ],
-    veto_labels: &["estados unidos", "estados_unidos", "estado unido", "usa", "eeuu"],
+    veto_labels: &[
+        "estados unidos",
+        "estados_unidos",
+        "estado unido",
+        "usa",
+        "eeuu",
+    ],
 }];
 
 /// Alias por tema. Vocabulario provisional del router, no conocimiento del modelo.
 fn aliases_for(term: &str) -> &'static [&'static str] {
     match term {
         t if t.contains("programacion") || t.contains("informatica") => &[
-            "programar", "programando", "codigo", "code", "rust", "julia", "python", "c",
-            "backend", "frontend", "api", "base de datos", "bug", "compilar", "compilador",
-            "funcion", "variable", "git", "servidor", "web", "sql", "algoritmo", "debug",
-            "borrow", "memoria ram", "hilo", "concurrencia", "cabrita",
+            "programar",
+            "programando",
+            "codigo",
+            "code",
+            "rust",
+            "julia",
+            "python",
+            "c",
+            "backend",
+            "frontend",
+            "api",
+            "base de datos",
+            "bug",
+            "compilar",
+            "compilador",
+            "funcion",
+            "variable",
+            "git",
+            "servidor",
+            "web",
+            "sql",
+            "algoritmo",
+            "debug",
+            "borrow",
+            "memoria ram",
+            "hilo",
+            "concurrencia",
+            "cabrita",
         ],
         t if t.contains("matematicas") || t.contains("calculo") => &[
-            "derivada", "integral", "ecuacion", "algebra", "suma", "resta", "multiplicacion",
-            "division", "numero", "probabilidad", "estadistica", "teorema", "funcion lineal",
-            "limite", "matriz", "vector", "porcentaje",
+            "derivada",
+            "integral",
+            "ecuacion",
+            "algebra",
+            "suma",
+            "resta",
+            "multiplicacion",
+            "division",
+            "numero",
+            "probabilidad",
+            "estadistica",
+            "teorema",
+            "funcion lineal",
+            "limite",
+            "matriz",
+            "vector",
+            "porcentaje",
         ],
         t if t.contains("estados unidos") || t.contains("estados_unidos") => &[
-            "eeuu", "ee.uu", "usa", "unidos", "washington", "california", "texas", "florida",
-            "gringo", "norteamerica", "norteamericano", "nueva york", "los angeles",
+            "eeuu",
+            "ee.uu",
+            "usa",
+            "unidos",
+            "washington",
+            "california",
+            "texas",
+            "florida",
+            "gringo",
+            "norteamerica",
+            "norteamericano",
+            "nueva york",
+            "los angeles",
         ],
         t if t.contains("general") || t.contains("sft") => &[
-            "hola", "buenas", "gracias", "quien eres", "que puedes hacer", "ayuda",
-            "como estas", "buenos dias", "buenas tardes", "adios",
+            "hola",
+            "buenas",
+            "gracias",
+            "quien eres",
+            "que puedes hacer",
+            "ayuda",
+            "como estas",
+            "buenos dias",
+            "buenas tardes",
+            "adios",
         ],
         _ => &[],
     }
@@ -79,13 +142,19 @@ pub struct KeywordRouter {
 
 impl Default for KeywordRouter {
     fn default() -> Self {
-        Self { min_score: 0.30, followup_boost: 0.60 }
+        Self {
+            min_score: 0.30,
+            followup_boost: 0.60,
+        }
     }
 }
 
 impl KeywordRouter {
     pub fn new(min_score: f32, followup_boost: f32) -> Self {
-        Self { min_score, followup_boost }
+        Self {
+            min_score,
+            followup_boost,
+        }
     }
 }
 
@@ -131,14 +200,16 @@ impl Router for KeywordRouter {
                     hits.push(term.clone());
                 } else if term.chars().count() >= 5 {
                     // Coincidencia de raíz: "programar" ↔ "programacion".
-                    let root_hit = norm
-                        .split_whitespace()
-                        .any(|w| {
-                            let wl = w.chars().count();
-                            wl >= 5
-                                && wl.abs_diff(term.chars().count()) <= 3
-                                && w.chars().zip(term.chars()).take_while(|(a, b)| a == b).count() >= 5
-                        });
+                    let root_hit = norm.split_whitespace().any(|w| {
+                        let wl = w.chars().count();
+                        wl >= 5
+                            && wl.abs_diff(term.chars().count()) <= 3
+                            && w.chars()
+                                .zip(term.chars())
+                                .take_while(|(a, b)| a == b)
+                                .count()
+                                >= 5
+                    });
                     if root_hit {
                         score += 0.45;
                         hits.push(term.clone());
@@ -154,9 +225,7 @@ impl Router for KeywordRouter {
             // Desambiguación por contexto (después de la inercia, para que la
             // inercia no pueda devolver una lectura que el contenido descarta).
             for rule in RULES {
-                let triggered = norm
-                    .split_whitespace()
-                    .any(|w| w.starts_with(rule.trigger));
+                let triggered = norm.split_whitespace().any(|w| w.starts_with(rule.trigger));
                 if !triggered {
                     continue;
                 }
@@ -164,7 +233,11 @@ impl Router for KeywordRouter {
                     continue;
                 }
                 let label = normalize(&route.label());
-                if rule.veto_labels.iter().any(|v| label.contains(&normalize(v))) {
+                if rule
+                    .veto_labels
+                    .iter()
+                    .any(|v| label.contains(&normalize(v)))
+                {
                     if score > 0.0 {
                         notes.push(format!(
                             "desambiguación: «{}» sin contexto de país; se descarta «{}»",
@@ -207,7 +280,10 @@ impl Router for KeywordRouter {
             }
             Some((_, _, score, _)) => {
                 let fb = default_route(req.routes);
-                let mut reason = format!("sin coincidencia suficiente (máx {score:.2} < {:.2})", self.min_score);
+                let mut reason = format!(
+                    "sin coincidencia suficiente (máx {score:.2} < {:.2})",
+                    self.min_score
+                );
                 for n in &notes {
                     reason.push_str(" · ");
                     reason.push_str(n);
@@ -235,7 +311,11 @@ fn default_route(routes: &[RouteInfo]) -> RouteInfo {
             return r.clone();
         }
     }
-    routes.iter().min_by_key(|r| r.id).cloned().unwrap_or_else(|| routes[0].clone())
+    routes
+        .iter()
+        .min_by_key(|r| r.id)
+        .cloned()
+        .unwrap_or_else(|| routes[0].clone())
 }
 
 #[cfg(test)]
@@ -258,7 +338,12 @@ mod tests {
     fn choose(text: &str, routes: &[RouteInfo], hist: &[HistoryTurn]) -> RouteChoice {
         let router = KeywordRouter::default();
         let tokens: Vec<u32> = text.bytes().map(u32::from).collect();
-        router.choose(&RouteRequest { text, tokens: &tokens, history: hist, routes })
+        router.choose(&RouteRequest {
+            text,
+            tokens: &tokens,
+            history: hist,
+            routes,
+        })
     }
 
     #[test]

@@ -1,27 +1,55 @@
-//! Motor de respuesta: contrato estable + implementaciones provisionales.
+//! Motor de respuesta: contrato estable + implementaciones.
 //!
-//! El motor real (forward pass sobre los tensores UKJ, pensamiento profundo y
-//! streaming) aún no existe. Cabrita define aquí el punto de conexión:
+//! Cabrita define aquí el punto de conexión:
 //!
 //! ```text
 //! trait Engine { fn respond(&mut self, ctx: &EngineContext) -> Result<EngineAnswer> }
 //! ```
 //!
-//! `ctx` ya lleva todo lo que el motor definitivo necesita: ruta activa, sus
-//! tensores en RAM, memoria TOJI del turno, historial, tokens de entrada y el
-//! estado de estrés. Cuando el modelo entrenado llegue, se implementa `Engine`
-//! sobre `ctx.tensors` y se registra en `from_name`; el REPL, el router, TOJI y
-//! la cola de feedback no cambian.
+//! `ctx` lleva todo lo que un motor necesita: ruta activa, sus tensores en RAM,
+//! memoria TOJI del turno, historial, tokens de entrada y el estado de estrés.
+//! Hay tres motores registrados en `from_name`:
 //!
-//! Las dos implementaciones actuales son honestas: dicen que están en modo
-//! plantilla y no inventan conocimiento.
+//! * `transformer` — forward real del trunk desde el UKJ + manifiesto, con caché
+//!   KV y muestreo. Carga sus propios tensores y no usa `ctx.tensors`.
+//! * `stats` — diagnóstico: muestra ruta, memoria y estadísticas de la ruta.
+//! * `template` — plantilla honesta que repite el mensaje; no inventa conocimiento.
+
+mod transformer;
+
+pub use transformer::TransformerEngine;
+
+use std::path::Path;
 
 use anyhow::Result;
 
 use crate::router::HistoryTurn;
 use crate::toji::MemoryView;
+use crate::tok::Tokenizer;
 use crate::ukj::{RouteInfo, RouteTensors};
 use crate::util::human_bytes;
+
+/// Parametros de generacion del motor real.
+#[derive(Debug, Clone)]
+pub struct GenOptions {
+    pub max_new: usize,
+    pub temperature: f32,
+    pub top_k: usize,
+    pub top_p: f32,
+    pub seed: Option<u64>,
+}
+
+impl Default for GenOptions {
+    fn default() -> Self {
+        GenOptions {
+            max_new: 48,
+            temperature: 0.9,
+            top_k: 40,
+            top_p: 0.95,
+            seed: None,
+        }
+    }
+}
 
 /// Todo lo que el motor puede leer en un turno.
 pub struct EngineContext<'a> {
@@ -30,6 +58,8 @@ pub struct EngineContext<'a> {
     pub memory: &'a MemoryView,
     pub history: &'a [HistoryTurn],
     pub user_text: &'a str,
+    pub tokens: &'a [u32],
+    pub tok: &'a Tokenizer,
     pub tokens_in: usize,
     pub model_version: &'a str,
     pub route_bytes: u64,
@@ -47,18 +77,32 @@ pub struct EngineAnswer {
 
 pub trait Engine {
     fn name(&self) -> &str;
+
+    /// `false` si el motor carga sus propios tensores (el transformer lee el
+    /// trunk del UKJ al construirse y no necesita la copia de la ruta activa).
+    fn uses_route_tensors(&self) -> bool {
+        true
+    }
+
     fn respond(&mut self, ctx: &EngineContext) -> Result<EngineAnswer>;
 }
 
 /// Construye el motor pedido por nombre.
-pub fn from_name(name: &str) -> Result<Box<dyn Engine>> {
+///
+/// `model_path` solo lo usan los motores que leen tensores (hoy el transformer);
+/// los de plantilla lo ignoran.
+pub fn from_name(name: &str, model_path: &Path, opts: GenOptions) -> Result<Box<dyn Engine>> {
     match name.to_ascii_lowercase().as_str() {
         "template" | "plantilla" => Ok(Box::new(TemplateEngine::default())),
         "stats" | "tensor" => Ok(Box::new(StatsEngine::default())),
-        other => anyhow::bail!("motor desconocido «{other}» (disponibles: template, stats)"),
+        "transformer" | "real" | "modelo" => {
+            Ok(Box::new(TransformerEngine::open(model_path, opts)?))
+        }
+        other => {
+            anyhow::bail!("motor desconocido: {other} (disponibles: template, stats, transformer)")
+        }
     }
 }
-
 fn echo(text: &str, max_chars: usize) -> String {
     let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
     if flat.chars().count() <= max_chars {
@@ -102,7 +146,10 @@ impl Engine for TemplateEngine {
             text.push_str(&format!("\nTurnos en contexto: {}.", ctx.history.len()));
         }
 
-        Ok(EngineAnswer { text, notes: Vec::new() })
+        Ok(EngineAnswer {
+            text,
+            notes: Vec::new(),
+        })
     }
 }
 
@@ -121,7 +168,11 @@ impl Engine for StatsEngine {
             "(modo plantilla+stats: sin pesos útiles todavía) Mensaje: «{}».\n",
             echo(ctx.user_text, 140)
         );
-        text.push_str(&format!("Ruta activa: {} (id {}).\n", ctx.route.label(), ctx.route.id));
+        text.push_str(&format!(
+            "Ruta activa: {} (id {}).\n",
+            ctx.route.label(),
+            ctx.route.id
+        ));
         text.push_str(&format!(
             "Modelo: {} · {} tok in · {} de tensores.\n",
             ctx.model_version,
@@ -159,7 +210,11 @@ impl Engine for StatsEngine {
             "\nEstrés: {}/{} activaciones{}.",
             ctx.stress_count,
             ctx.stress_threshold,
-            if ctx.stressed { " (umbral superado, ruta marcada)" } else { "" }
+            if ctx.stressed {
+                " (umbral superado, ruta marcada)"
+            } else {
+                ""
+            }
         ));
         Ok(EngineAnswer { text, notes })
     }
@@ -171,6 +226,11 @@ mod tests {
     use crate::toji::MemoryUpdater;
     use crate::toji::Sector;
 
+    fn tok<'a>() -> &'a Tokenizer {
+        Box::leak(Box::new(
+            Tokenizer::load(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/iris.tok")).unwrap(),
+        ))
+    }
     fn ctx<'a>(
         route: &'a RouteInfo,
         tensors: &'a RouteTensors,
@@ -184,6 +244,8 @@ mod tests {
             memory: mem,
             history: hist,
             user_text: text,
+            tokens: &[104, 111, 108, 97],
+            tok: tok(),
             tokens_in: 5,
             model_version: "UKJ v1 (p4-one)",
             route_bytes: 256,
@@ -202,7 +264,11 @@ mod tests {
             nbytes: 0,
             dim: 0,
         };
-        let t = RouteTensors { route_id: 1, dim: 2, data: vec![1.0, 2.0] };
+        let t = RouteTensors {
+            route_id: 1,
+            dim: 2,
+            data: vec![1.0, 2.0],
+        };
         let mem = MemoryView::empty("mundo");
         let mut e = TemplateEngine::default();
         let ans = e
@@ -224,11 +290,17 @@ mod tests {
             nbytes: 0,
             dim: 4,
         };
-        let t = RouteTensors { route_id: 2, dim: 4, data: vec![1.0, 2.0, 3.0, 4.0] };
+        let t = RouteTensors {
+            route_id: 2,
+            dim: 4,
+            data: vec![1.0, 2.0, 3.0, 4.0],
+        };
         let mut s = Sector::new("ciencia");
         let mem = MemoryUpdater::default().absorb(&mut s, "integral de x");
         let mut e = StatsEngine::default();
-        let ans = e.respond(&ctx(&route, &t, &mem, &[], "integral de x")).unwrap();
+        let ans = e
+            .respond(&ctx(&route, &t, &mem, &[], "integral de x"))
+            .unwrap();
         assert!(ans.text.contains("dim=4"));
         assert!(ans.text.contains("media=2.5000"));
         assert!(ans.text.contains("3/12"));
@@ -237,7 +309,8 @@ mod tests {
 
     #[test]
     fn motor_desconocido() {
-        assert!(from_name("magia").is_err());
-        assert!(from_name("stats").is_ok());
+        let p = Path::new("assets/test.ukj");
+        assert!(from_name("magia", p, GenOptions::default()).is_err());
+        assert!(from_name("stats", p, GenOptions::default()).is_ok());
     }
 }

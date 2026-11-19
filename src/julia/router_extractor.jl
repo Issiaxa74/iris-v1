@@ -168,6 +168,9 @@ function main()
     outpath = length(ARGS) >= 2 ? ARGS[2] : joinpath(@__DIR__, "router_data_f4c.tsv")
     origpath = joinpath(@__DIR__, "router_data.tsv")
 
+    isfile(origpath) || error("falta $origpath (248 muestras F3); no se incluye en el repo")
+    isdir(srcdir) || error("no existe el directorio del destilado: $srcdir (no se incluye en el repo)")
+
     rows = read_tsv(origpath)
     n_orig = length(rows)
     @printf("muestras originales (F3): %d\n", n_orig)

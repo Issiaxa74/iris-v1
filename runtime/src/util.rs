@@ -146,7 +146,10 @@ mod tests {
 
     #[test]
     fn normaliza_acentos() {
-        assert_eq!(normalize("¿Programación en Ñandú?"), "programacion en nandu");
+        assert_eq!(
+            normalize("¿Programación en Ñandú?"),
+            "programacion en nandu"
+        );
         assert_eq!(normalize("  ---  "), "");
     }
 

@@ -14,19 +14,24 @@ Registro de lo que se construyó, lo que se verificó y lo que falta. Los númer
 | F4a | Fusión de kernels, hilos, micro-batch | 68 → 108–129 tok/s; test batch OK |
 | F4b | Pipeline de datos + ciclos de 2 h | 2 ciclos completos, cursores reanudables |
 | F4c | Router v1 (22 rutas) | exacto a τ=0,85 en val y test |
-| F6 | Runtime cabrita | 52 tests (47 + 5) |
+| F6 | Runtime cabrita | 57 tests (50 + 7) |
+| F7 | Motor transformer + export UKJ real | paridad de logits con Julia, misma generación greedy, 19 tok/s |
 
 ## Entrenamiento real
 
 Dos ciclos de 2 h, con reinicios y reanudación por cursor:
 
-| Ciclo | Pasos | Tokens | Velocidad | Loss | Texto |
+| Ciclo | Pasos | Tokens | Velocidad | Loss (media acumulada) | Texto |
 |---|---|---|---|---|---|
 | 1 (79 min, cortado por reinicio) | ~1 000 | 514 048 | 108,9 tok/s | 7,80 → 5,88 | ~1,15 MB |
 | 2 (120 min) | 1 526 | 781 312 | 108,4 tok/s | 5,95 → 5,77 | 1,75 MB |
 
 - Reparto del ciclo 2: c4 29,8 %, fineweb 36,3 %, wikipedia 33,9 %. RSS 7,34 GB.
-- La loss se quedó **plana en 5,77 la segunda hora**. Sin diagnosticar.
+- En los ciclos publicados solo se registró `lossac / lossn`: la media
+  **acumulada desde el inicio del proceso**, no la loss del paso. La meseta de
+  5,77 es la media estabilizada; no se puede afirmar que el modelo dejara de
+  mejorar. La versión actual del ciclo imprime además la media de la ventana de
+  40 s.
 - Total: ~1,30 M tokens sobre 193 M de parámetros activos → 0,007 tokens/parámetro.
 
 ## Rendimiento del entrenador
@@ -50,12 +55,15 @@ Cuello de botella: los GEMM de pesos (~6·N FLOPs por token) contra los ~270 GFL
 | F4c (vigente) | 22 | 674 | 56,2 % | 0,85 | 29 % | 100 % (28/28 val, 29/29 test) |
 | F4d (descartado) | 22 | 825 | — | 0,85 | — | 94,7 % test |
 
-F4d usó extractos de 300 caracteres y quedó peor en todos los τ; se conserva como `router_v0_f4d_backup.irrtr` y el artifact operativo volvió a F4c.
+F4d usó extractos de 300 caracteres y quedó peor en todos los t; el artifact operativo volvió a F4c. El backup F4d no se publica: solo se incluye `models/router_v0.irrtr` (F4c).
 
-## Runtime
+## Runtime e inferencia
 
-- 47 tests unitarios + 5 de integración en verde.
-- El **motor de inferencia es una plantilla**: carga UKJ, resuelve rutas, gestiona TOJI y feedback, pero no ejecuta el transformer. La generación real, hoy, es `src/julia/generate.jl`.
+- 50 tests unitarios + 7 de integración en verde.
+- El motor `transformer` ejecuta el forward real del trunk desde el UKJ + manifiesto, con caché KV, atención causal, GELU/LN y muestreo temp/top-k/top-p/seed. Solo carga la ruta `trunk` (736,2 MB del modelo real).
+- Paridad con Julia: la prueba golden compara 8 logits y el argmax; con el checkpoint real, Julia y Rust generan la misma secuencia de 12 tokens con `--temp 0`.
+- Rendimiento: ~19 tok/s en CPU con el checkpoint real (un matvec por token); el entrenador procesa secuencias completas y por eso es más rápido.
+- `template` y `stats` siguen disponibles como diagnóstico, pero ya no son el motor para generar texto.
 
 ## Lo que falta
 
@@ -63,8 +71,10 @@ F4d usó extractos de 300 caracteres y quedó peor en todos los τ; se conserva 
 |---|---|
 | Reducir `vocab` 16384 → 1056 | ~15,7 M parámetros y ~15× menos GEMM de logits |
 | Conectar o quitar las 16 hojas | 53 % del checkpoint es peso muerto |
-| Caché KV | generación O(T) en vez de O(T²) |
-| Diagnosticar la loss plana | puede ser lr, datos o Adam |
+
+| Validación held-out | no hay perplejidad de validación, solo loss de entrenamiento |
+| Diagnosticar la posible meseta | puede ser lr, datos o Adam |
+| Publicar el checkpoint | 1,63 GB no cabe en el repo; release asset de hasta 2 GB |
 | Entrenar a escala | 3 860 M tokens para 193 M parámetros; CPU no llega |
 | TOJI completo | creación automática de memoria en el pensamiento profundo |
 | Sub-parámetros reales | `p4-one` hoy es solo una etiqueta |

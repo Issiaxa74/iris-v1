@@ -4,6 +4,11 @@ models/*.ukj
 *.irmdl
 *.ukj
 
+# Fixtures diminutos del runtime: los tests los necesitan y pesan <1 MB
+!runtime/assets/test.ukj
+!runtime/assets/tiny.ukj
+!runtime/assets/tiny.ukj.json
+
 # Datos descargados
 datos/buffer/
 datos/cursors/
@@ -26,3 +31,18 @@ __pycache__/
 
 # Temporales
 *.tmp
+
+# Build
+/target
+**/*.rs.bk
+
+# Estado generado en tiempo de ejecución
+/memory/
+*.mem
+*.mem.zst
+/feedback_queue.jsonl
+*.stress.json
+
+# Entorno
+.env
+Manifest.toml

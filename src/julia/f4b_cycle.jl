@@ -1,4 +1,4 @@
-﻿# f4b_cycle.jl — Iris F4b: primer ciclo real: buffer (jsonl.gz) -> BPE -> trunk
+# f4b_cycle.jl — Iris F4b: primer ciclo real: buffer (jsonl.gz) -> BPE -> trunk
 # Uso: julia f4b_cycle.jl [minutos=120] [ckpt=../model_f4b.irmdl] [cursor=f4b_cursor.json]
 #
 # Consume el buffer del co-ayudador (C:/Users/angel/OpenBot/iris/datos/buffer):
@@ -183,7 +183,9 @@ function main()
     t0 = time()
     deadline = t0 + minutos * 60.0
     tcur = t0; tckpt = t0; tprint = t0; tlast = t0
-    pasos = 0; toks = 0; lossac = 0.0; lossn = 0; tokslast = 0
+    pasos = 0; toks = 0; lossac = 0.0; lossn = 0
+    lossv = 0.0; lossvn = 0          # loss de la ventana de 40 s (diagnostico)
+    tokslast = 0
 
     println("--- ciclo en marcha (parada abrupta = se reanuda por cursor + ckpt) ---")
     while time() < deadline
@@ -219,14 +221,16 @@ function main()
         f.servidos += W
         pasos += 1; toks += W
         lossac += l; lossn += 1
+        lossv += l; lossvn += 1
 
         tn = time()
         if tn - tprint >= 40.0
             rec = toks - tokslast; dt = tn - tlast
-            @printf("paso %5d | tok %9d | %.1f tok/s medio | %.1f tok/s ult | loss %.4f | %.1f min\n",
+            @printf("paso %5d | tok %9d | %.1f tok/s medio | %.1f tok/s ult | loss acum %.4f | loss ventana %.4f | %.1f min\n",
                     pasos, toks, toks / (tn - t0), dt > 0 ? rec / dt : 0.0,
-                    lossac / lossn, (tn - t0) / 60)
+                    lossac / lossn, lossv / max(lossvn, 1), (tn - t0) / 60)
             flush(stdout)
+            lossv = 0.0; lossvn = 0
         end
         if tn - tcur >= CURSOR_MIN * 60
             escribe_cursor(curpath, fuentes); tcur = tn
@@ -244,7 +248,7 @@ function main()
     escribe_cursor(curpath, fuentes)
     el = time() - t0
     println("--- fin del ciclo ---")
-    @printf("pasos %d | tokens entrenados %d | %.1f tok/s medio | loss medio %.4f\n",
+    @printf("pasos %d | tokens entrenados %d | %.1f tok/s medio | loss acumulada %.4f\n",
             pasos, toks, toks / max(el, 1e-9), lossn > 0 ? lossac / lossn : NaN)
     mb = sum(f.bytes for f in fuentes) / 1e6
     rss = try Sys.maxrss() / 2^30 catch; NaN end

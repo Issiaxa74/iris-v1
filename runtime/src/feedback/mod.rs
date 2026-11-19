@@ -160,7 +160,9 @@ impl FeedbackQueue {
             .with_context(|| format!("no se pudo leer {}", self.path.display()))?;
         raw.lines()
             .filter(|l| !l.trim().is_empty())
-            .map(|l| serde_json::from_str::<FeedbackRecord>(l).context("registro de feedback corrupto"))
+            .map(|l| {
+                serde_json::from_str::<FeedbackRecord>(l).context("registro de feedback corrupto")
+            })
             .collect()
     }
 }
@@ -241,7 +243,11 @@ fn parse_text_pairs(raw: &str) -> Result<Vec<QaPair>> {
             if a.trim().is_empty() {
                 bail!("la pregunta de la línea {line} no tiene respuesta (marcador R:)");
             }
-            pairs.push(QaPair { question: q.trim().to_string(), answer: a.trim().to_string(), line });
+            pairs.push(QaPair {
+                question: q.trim().to_string(),
+                answer: a.trim().to_string(),
+                line,
+            });
         } else {
             answer.take();
         }
@@ -308,13 +314,18 @@ fn parse_json_pairs(raw: &str) -> Result<Vec<QaPair>> {
         let v: serde_json::Value = serde_json::from_str(line)
             .with_context(|| format!("JSON inválido en la línea {}", idx + 1))?;
         let get = |keys: &[&str]| -> Option<String> {
-            keys.iter().find_map(|k| v.get(*k).and_then(|x| x.as_str()).map(|s| s.to_string()))
+            keys.iter()
+                .find_map(|k| v.get(*k).and_then(|x| x.as_str()).map(|s| s.to_string()))
         };
         let q = get(&["question", "q", "prompt", "input", "entrada"]);
         let a = get(&["answer", "a", "response", "output", "respuesta"]);
         match (q, a) {
             (Some(q), Some(a)) if !q.trim().is_empty() && !a.trim().is_empty() => {
-                out.push(QaPair { question: q, answer: a, line: idx + 1 })
+                out.push(QaPair {
+                    question: q,
+                    answer: a,
+                    line: idx + 1,
+                })
             }
             _ => bail!("línea {} no tiene pregunta y respuesta válidas", idx + 1),
         }
@@ -350,7 +361,8 @@ mod tests {
             engine: "template".into(),
             model_version: "UKJ v1 (p4-one)".into(),
         };
-        q.enqueue(&snap.record(FeedbackKind::Si, Some("cuatro".into()))).unwrap();
+        q.enqueue(&snap.record(FeedbackKind::Si, Some("cuatro".into())))
+            .unwrap();
         q.enqueue(&snap.record(FeedbackKind::No, None)).unwrap();
         assert_eq!(q.pending(), 2);
         let recs = q.read_all().unwrap();

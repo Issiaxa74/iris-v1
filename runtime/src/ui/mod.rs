@@ -6,7 +6,7 @@ use std::time::Instant;
 use anyhow::Result;
 
 use crate::cli::{Config, VERSION};
-use crate::engine::{self, Engine, EngineContext};
+use crate::engine::{self, Engine, EngineContext, GenOptions};
 use crate::feedback::{parse_ent_my, FeedbackKind, FeedbackQueue, TurnSnapshot};
 use crate::router::keyword::KeywordRouter;
 use crate::router::{HistoryTurn, RouteChoice, RouteRequest, Router};
@@ -50,8 +50,19 @@ impl App {
                 cfg.tok.display()
             )
         })?;
-        let engine = engine::from_name(&cfg.engine)?;
-        let stress = crate::ukj::StressTable::load(&cfg.model, cfg.stress_threshold, cfg.stress_decay)?;
+        let engine = engine::from_name(
+            &cfg.engine,
+            &cfg.model,
+            GenOptions {
+                max_new: cfg.max_new,
+                temperature: cfg.temperature,
+                top_k: cfg.top_k,
+                top_p: cfg.top_p,
+                seed: cfg.seed,
+            },
+        )?;
+        let stress =
+            crate::ukj::StressTable::load(&cfg.model, cfg.stress_threshold, cfg.stress_decay)?;
         let store = MemStore::new(&cfg.mem_dir, cfg.compress_mem);
         let queue = FeedbackQueue::new(&cfg.queue);
         let router = KeywordRouter::new(cfg.min_score, 0.6);
@@ -95,7 +106,11 @@ impl App {
             self.store.dir().display(),
             self.queue.path().display()
         );
-        println!("motor     : {} · router: {}", self.engine.name(), self.router.name());
+        println!(
+            "motor     : {} · router: {}",
+            self.engine.name(),
+            self.router.name()
+        );
         println!("escribe /help para los comandos, /exit para salir.\n");
     }
 
@@ -142,19 +157,25 @@ impl App {
             routes: &self.model.routes,
         });
 
-        let idx = self
-            .model
-            .route_index(choice.route_id)
-            .ok_or_else(|| anyhow::anyhow!("el router devolvió una ruta inexistente ({})", choice.route_id))?;
+        let idx = self.model.route_index(choice.route_id).ok_or_else(|| {
+            anyhow::anyhow!(
+                "el router devolvió una ruta inexistente ({})",
+                choice.route_id
+            )
+        })?;
         let route = self.model.route(idx)?.clone();
 
         let mut notes: Vec<String> = Vec::new();
-        let tensors = match self.model.load_route(idx) {
-            Ok(t) => Some(t),
-            Err(e) => {
-                notes.push(format!("aviso: no se pudieron cargar los tensores: {e}"));
-                None
+        let tensors = if self.engine.uses_route_tensors() {
+            match self.model.load_route(idx) {
+                Ok(t) => Some(t),
+                Err(e) => {
+                    notes.push(format!("aviso: no se pudieron cargar los tensores: {e}"));
+                    None
+                }
             }
+        } else {
+            None
         };
 
         self.stress.register(route.id, tokens.len().max(1) as u64);
@@ -178,6 +199,8 @@ impl App {
             memory: &memory,
             history: &self.history,
             user_text,
+            tokens: &tokens,
+            tok: &self.tok,
             tokens_in: tokens.len(),
             model_version: &self.model_version(),
             route_bytes: self.model.route_bytes(&route),
@@ -204,7 +227,11 @@ impl App {
             tokens_out,
             self.engine.name(),
             elapsed.as_millis(),
-            if choice.used_fallback { " · fallback" } else { "" }
+            if choice.used_fallback {
+                " · fallback"
+            } else {
+                ""
+            }
         );
         if self.stress.is_stressed(route.id) {
             meta.push_str(" · ESTRÉS");
@@ -432,7 +459,11 @@ impl App {
             header.quant,
             header.n_rutas,
             header.flags,
-            if header.tokenizer_embedded() { " (tokenizer embebido)" } else { "" }
+            if header.tokenizer_embedded() {
+                " (tokenizer embebido)"
+            } else {
+                ""
+            }
         );
         println!(
             "integridad : {} · checksum guardado {:#x} · calculado {:#x}",
@@ -479,15 +510,24 @@ impl App {
             );
             let mut cands = c.candidates.clone();
             cands.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-            let top: Vec<String> = cands.iter().take(4).map(|(id, s)| format!("{id}:{s:.2}")).collect();
+            let top: Vec<String> = cands
+                .iter()
+                .take(4)
+                .map(|(id, s)| format!("{id}:{s:.2}"))
+                .collect();
             if !top.is_empty() {
                 println!("candidatas : {}", top.join("  "));
             }
         }
-        let rss = process_rss().map(human_bytes).unwrap_or_else(|| "n/d".into());
+        let rss = process_rss()
+            .map(human_bytes)
+            .unwrap_or_else(|| "n/d".into());
         println!(
             "RAM        : proceso {rss} · ruta activa {} · modelo en disco {}",
-            active.as_ref().map(|r| human_bytes(r.nbytes)).unwrap_or_else(|| "0 B".into()),
+            active
+                .as_ref()
+                .map(|r| human_bytes(r.nbytes))
+                .unwrap_or_else(|| "0 B".into()),
             human_bytes(self.model.size())
         );
         println!(
@@ -505,7 +545,11 @@ impl App {
         println!(
             "memoria TOJI: {} · sectores: {}",
             self.store.dir().display(),
-            if sectors.is_empty() { "(ninguno)".to_string() } else { sectors.join(", ") }
+            if sectors.is_empty() {
+                "(ninguno)".to_string()
+            } else {
+                sectors.join(", ")
+            }
         );
         println!(
             "feedback   : {} · {} registros pendientes",
@@ -532,7 +576,11 @@ impl App {
         for r in &self.model.routes {
             let activations = self.stress.activations(r.id);
             let thr = self.stress.threshold_for(r.id);
-            let mark = if self.last_route == Some(r.id) { "·" } else { "" };
+            let mark = if self.last_route == Some(r.id) {
+                "·"
+            } else {
+                ""
+            };
             println!(
                 "{:>3}  {:<48} {:>6} {:>9} {:>12}  {}",
                 r.id,
@@ -544,7 +592,10 @@ impl App {
             );
         }
         if let Some(c) = &self.last_choice {
-            println!("\núltima decisión: {} · {:.2} · {}", c.label, c.score, c.reason);
+            println!(
+                "\núltima decisión: {} · {:.2} · {}",
+                c.label, c.score, c.reason
+            );
         }
     }
 
@@ -651,7 +702,11 @@ impl App {
         };
         println!(
             "fusionado «{src}» → «{dst}»{}",
-            if self.cfg.write_memory { "" } else { " (sin escribir: --no-mem-write)" }
+            if self.cfg.write_memory {
+                ""
+            } else {
+                " (sin escribir: --no-mem-write)"
+            }
         );
         println!(
             "  añadidos: neuronas {} · satélites {} · cables {} · anormales {} · fronteras {}",
@@ -663,8 +718,7 @@ impl App {
         );
         println!(
             "  fusionados: cables {} · anormales {}",
-            stats.cables_merged,
-            stats.anormals_merged
+            stats.cables_merged, stats.anormals_merged
         );
         println!("  destino: {}", path.display());
         Ok(())
@@ -679,11 +733,21 @@ impl App {
         let ids = self.tok.encode(arg);
         let decoded = self.tok.decode(&ids)?;
         let bytes = self.tok.decode_bytes(&ids)?.len();
-        println!("tokens: {} · bytes: {} · ida y vuelta: {}", ids.len(), bytes, if decoded == arg { "OK" } else { "FALLO" });
+        println!(
+            "tokens: {} · bytes: {} · ida y vuelta: {}",
+            ids.len(),
+            bytes,
+            if decoded == arg { "OK" } else { "FALLO" }
+        );
         let shown: Vec<String> = ids
             .iter()
             .take(16)
-            .map(|id| format!("{id}:{}", self.tok.token_text(*id).unwrap_or_else(|| "?".into())))
+            .map(|id| {
+                format!(
+                    "{id}:{}",
+                    self.tok.token_text(*id).unwrap_or_else(|| "?".into())
+                )
+            })
             .collect();
         println!("  {}", shown.join("  "));
         if ids.len() > 16 {
@@ -712,7 +776,10 @@ impl App {
         let recs = match self.queue.read_all() {
             Ok(r) => r,
             Err(_) => {
-                println!("la cola {} aún no existe o está vacía", self.queue.path().display());
+                println!(
+                    "la cola {} aún no existe o está vacía",
+                    self.queue.path().display()
+                );
                 return;
             }
         };
@@ -721,7 +788,11 @@ impl App {
             return;
         }
         let start = recs.len().saturating_sub(n);
-        println!("últimos {} de {} registros:", recs.len() - start, recs.len());
+        println!(
+            "últimos {} de {} registros:",
+            recs.len() - start,
+            recs.len()
+        );
         for r in &recs[start..] {
             let user = truncate(&r.user_text, 42);
             let iris = truncate(&r.iris_text, 42);

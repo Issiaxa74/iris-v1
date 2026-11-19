@@ -153,7 +153,26 @@ pub struct UkjModel {
 
 impl UkjModel {
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
-        let path = path.as_ref().to_path_buf();
+        Self::open_inner(path.as_ref(), true)
+    }
+
+    /// Abre el UKJ sin recorrer todo el archivo para el checksum. Lo usa el
+    /// motor transformer, que solo necesita la tabla y la ruta del trunk: en un
+    /// modelo de 1,5 GB el checksum completo retrasa el arranque sin aportar
+    /// nada a la generacion. `integrity().ok` queda en `false` hasta llamar a
+    /// `verificar()`.
+    pub fn open_no_verify(path: impl AsRef<Path>) -> Result<Self> {
+        Self::open_inner(path.as_ref(), false)
+    }
+
+    /// Recalcula el chequeo del archivo ya abierto (API para herramientas).
+    #[allow(dead_code)]
+    pub fn verificar(&mut self) -> Integrity {
+        self.integrity = self.compute_integrity();
+        self.integrity.clone()
+    }
+
+    fn open_inner(path: &Path, verificar: bool) -> Result<Self> {
         let file = File::open(&path)
             .with_context(|| format!("no se pudo abrir el modelo {}", path.display()))?;
         let size = file
@@ -161,14 +180,18 @@ impl UkjModel {
             .with_context(|| format!("no se pudo leer el tamaño de {}", path.display()))?
             .len();
         if size < 32 {
-            bail!("{} es demasiado pequeño para ser UKJ ({} B)", path.display(), size);
+            bail!(
+                "{} es demasiado pequeño para ser UKJ ({} B)",
+                path.display(),
+                size
+            );
         }
         // SAFETY: archivo abierto en solo lectura y no se modifica mientras viva el mmap.
         let mmap = unsafe { Mmap::map(&file) }
             .with_context(|| format!("mmap falló sobre {}", path.display()))?;
         let (header, routes) = parse(&mmap, size)?;
         let mut model = UkjModel {
-            path,
+            path: path.to_path_buf(),
             mmap,
             header: Header {
                 version: 1,
@@ -179,10 +202,22 @@ impl UkjModel {
                 file_size: size,
             },
             routes,
-            integrity: Integrity { stored: 0, computed: 0, ok: false },
+            integrity: Integrity {
+                stored: 0,
+                computed: 0,
+                ok: false,
+            },
         };
         model.header = header;
-        model.integrity = model.compute_integrity();
+        if verificar {
+            model.integrity = model.compute_integrity();
+        } else {
+            model.integrity = Integrity {
+                stored: model.stored_checksum(),
+                computed: 0,
+                ok: false,
+            };
+        }
         Ok(model)
     }
 
@@ -218,7 +253,11 @@ impl UkjModel {
             .iter()
             .fold(0u64, |acc, b| acc.wrapping_add(*b as u64));
         let stored = self.stored_checksum();
-        Integrity { stored, computed, ok: stored == computed }
+        Integrity {
+            stored,
+            computed,
+            ok: stored == computed,
+        }
     }
 
     fn stored_checksum(&self) -> u64 {
@@ -236,9 +275,12 @@ impl UkjModel {
     }
 
     pub fn route(&self, idx: usize) -> Result<&RouteInfo> {
-        self.routes
-            .get(idx)
-            .ok_or_else(|| anyhow!("índice de ruta {idx} fuera de rango ({} rutas)", self.routes.len()))
+        self.routes.get(idx).ok_or_else(|| {
+            anyhow!(
+                "índice de ruta {idx} fuera de rango ({} rutas)",
+                self.routes.len()
+            )
+        })
     }
 
     /// Copia a RAM los tensores de una ruta. Es la única lectura de datos del modelo.
@@ -270,7 +312,11 @@ impl UkjModel {
             );
         }
         if route.nbytes % 4 != 0 {
-            bail!("ruta {}: nbytes {} no es múltiplo de 4", route.id, route.nbytes);
+            bail!(
+                "ruta {}: nbytes {} no es múltiplo de 4",
+                route.id,
+                route.nbytes
+            );
         }
         let raw = &self.mmap[start..end];
         let mut data = Vec::with_capacity(route.n_floats() as usize);
@@ -285,7 +331,11 @@ impl UkjModel {
                 data.len()
             );
         }
-        Ok(RouteTensors { route_id: route.id, dim: route.dim, data })
+        Ok(RouteTensors {
+            route_id: route.id,
+            dim: route.dim,
+            data,
+        })
     }
 
     /// Ruta por defecto del router cuando no hay coincidencia: la primera que
@@ -293,11 +343,11 @@ impl UkjModel {
     #[allow(dead_code)] // el router por contenido ya resuelve el fallback; se conserva la API
     pub fn fallback_route(&self) -> Option<&RouteInfo> {
         for needle in ["general", "mundo", "sft"] {
-            if let Some(r) = self
-                .routes
-                .iter()
-                .find(|r| r.niveles.iter().any(|n| crate::util::normalize(n).contains(needle)))
-            {
+            if let Some(r) = self.routes.iter().find(|r| {
+                r.niveles
+                    .iter()
+                    .any(|n| crate::util::normalize(n).contains(needle))
+            }) {
                 return Some(r);
             }
         }
@@ -319,7 +369,9 @@ impl std::fmt::Debug for UkjModel {
 fn parse(mmap: &[u8], size: u64) -> Result<(Header, Vec<RouteInfo>)> {
     let mut p = 0usize;
     let take = |p: &mut usize, n: usize| -> Result<&[u8]> {
-        let end = p.checked_add(n).ok_or_else(|| anyhow!("longitud desbordada"))?;
+        let end = p
+            .checked_add(n)
+            .ok_or_else(|| anyhow!("longitud desbordada"))?;
         if end > mmap.len() {
             bail!("archivo truncado: se esperaban {n} bytes en offset {p}");
         }
@@ -330,7 +382,10 @@ fn parse(mmap: &[u8], size: u64) -> Result<(Header, Vec<RouteInfo>)> {
 
     let magic = take(&mut p, 4)?;
     if magic != MAGIC {
-        bail!("magic inválido: {:?} (se esperaba \"UKJ\\0\")", String::from_utf8_lossy(magic));
+        bail!(
+            "magic inválido: {:?} (se esperaba \"UKJ\\0\")",
+            String::from_utf8_lossy(magic)
+        );
     }
     let version = read_u32(take(&mut p, 4)?);
     if version != VERSION_SUPPORTED {
@@ -362,7 +417,13 @@ fn parse(mmap: &[u8], size: u64) -> Result<(Header, Vec<RouteInfo>)> {
         let offset = read_u64(take(&mut p, 8)?);
         let nbytes = read_u64(take(&mut p, 8)?);
         let dim = read_u32(take(&mut p, 4)?);
-        routes.push(RouteInfo { id, niveles, offset, nbytes, dim });
+        routes.push(RouteInfo {
+            id,
+            niveles,
+            offset,
+            nbytes,
+            dim,
+        });
     }
     let tabla_end = p as u64;
 
@@ -396,7 +457,12 @@ fn parse(mmap: &[u8], size: u64) -> Result<(Header, Vec<RouteInfo>)> {
             );
         }
         if r.offset < prev_end {
-            bail!("ruta {}: tensores solapados (offset {} < {})", r.id, r.offset, prev_end);
+            bail!(
+                "ruta {}: tensores solapados (offset {} < {})",
+                r.id,
+                r.offset,
+                prev_end
+            );
         }
         prev_end = r.offset + r.nbytes;
     }
@@ -417,7 +483,14 @@ fn parse(mmap: &[u8], size: u64) -> Result<(Header, Vec<RouteInfo>)> {
     }
 
     Ok((
-        Header { version, quant, n_rutas, flags, tabla_offset, file_size: size },
+        Header {
+            version,
+            quant,
+            n_rutas,
+            flags,
+            tabla_offset,
+            file_size: size,
+        },
         routes,
     ))
 }
@@ -502,7 +575,8 @@ mod tests {
     fn rechaza_magic_y_version() {
         let dir = std::env::temp_dir().join("cabrita_ukj_bad");
         std::fs::create_dir_all(&dir).unwrap();
-        let mut bytes = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/test.ukj")).unwrap();
+        let mut bytes =
+            std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/test.ukj")).unwrap();
         let bad_magic = dir.join("magic.ukj");
         bytes[0] = b'X';
         std::fs::write(&bad_magic, &bytes).unwrap();
@@ -520,7 +594,8 @@ mod tests {
     fn detecta_checksum_alterado() {
         let dir = std::env::temp_dir().join("cabrita_ukj_checksum");
         std::fs::create_dir_all(&dir).unwrap();
-        let mut bytes = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/test.ukj")).unwrap();
+        let mut bytes =
+            std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/test.ukj")).unwrap();
         bytes[200] ^= 0xFF;
         let p = dir.join("corrupto.ukj");
         std::fs::write(&p, &bytes).unwrap();
@@ -537,7 +612,10 @@ mod tests {
         let p = dir.join("corto.ukj");
         std::fs::write(&p, &bytes[..40]).unwrap();
         let err = UkjModel::open(&p).unwrap_err().to_string();
-        assert!(err.contains("truncado") || err.contains("footer") || err.contains("rango"), "{err}");
+        assert!(
+            err.contains("truncado") || err.contains("footer") || err.contains("rango"),
+            "{err}"
+        );
     }
 
     #[test]

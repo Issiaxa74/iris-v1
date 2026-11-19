@@ -83,9 +83,25 @@ pub fn is_followup(text: &str, n_tokens: usize) -> bool {
         return true;
     }
     let starters = [
-        "y ", "pero ", "entonces ", "por que", "porque", "como ", "otro", "otra", "mas ",
-        "explicame", "explica", "continua", "sigue", "amplia", "detalla", "ejemplo", "y eso",
-        "entonces", "ahora",
+        "y ",
+        "pero ",
+        "entonces ",
+        "por que",
+        "porque",
+        "como ",
+        "otro",
+        "otra",
+        "mas ",
+        "explicame",
+        "explica",
+        "continua",
+        "sigue",
+        "amplia",
+        "detalla",
+        "ejemplo",
+        "y eso",
+        "entonces",
+        "ahora",
     ];
     if starters.iter().any(|s| norm.starts_with(s)) {
         return true;

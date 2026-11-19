@@ -1,13 +1,14 @@
-﻿# router_tau_sweep.jl — barrido de tau sobre el artifact guardado (sin entrenar)
+# router_tau_sweep.jl — barrido de tau sobre el artifact guardado (sin entrenar)
 # Uso: julia router_tau_sweep.jl [datos.tsv] [artifacto.irrtr]
 # Reutiliza los helpers de router_test.jl (incluible sin ejecutar main).
 
 include(joinpath(@__DIR__, "router_test.jl"))
 using .BPE, .IrisRouter, Printf, Random
 
-tok = BPE.load_tok(joinpath(@__DIR__, "..", "iris.tok"))
-datafile = length(ARGS) >= 1 ? (isabspath(ARGS[1]) ? ARGS[1] : joinpath(@__DIR__, ARGS[1])) : joinpath(@__DIR__, "router_data_f4c.tsv")
-artpath = length(ARGS) >= 2 ? (isabspath(ARGS[2]) ? ARGS[2] : joinpath(@__DIR__, "..", ARGS[2])) : joinpath(@__DIR__, "..", "router_v0.irrtr")
+raiz = normpath(@__DIR__, "..", "..")
+tok = BPE.load_tok(joinpath(raiz, "assets", "iris.tok"))
+datafile = length(ARGS) >= 1 ? abspath(ARGS[1]) : joinpath(raiz, "data", "router_data_f4c.tsv")
+artpath = length(ARGS) >= 2 ? abspath(ARGS[2]) : joinpath(raiz, "models", "router_v0.irrtr")
 
 rows = read_tsv(datafile)
 names, freq = class_order([r[1] for r in rows])

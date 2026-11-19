@@ -1,0 +1,49 @@
+{
+  "formato": "UKJ v0.1",
+  "quant": "p4-one",
+  "n_params": 199808,
+  "config": {"dim": 64, "n_layers": 2, "n_heads": 4, "ffn": 128, "vocab": 1056, "ctx": 64, "n_hojas": 1},
+  "rutas": [
+    {"id": 1, "nivel": "trunk", "n_floats": 133760, "tensores": [
+      {"nombre": "emb", "offset": 0, "n": 67584},
+      {"nombre": "t1.ln1g", "offset": 67584, "n": 64},
+      {"nombre": "t1.ln1b", "offset": 67648, "n": 64},
+      {"nombre": "t1.wqkv", "offset": 67712, "n": 12288},
+      {"nombre": "t1.wo", "offset": 80000, "n": 4096},
+      {"nombre": "t1.ln2g", "offset": 84096, "n": 64},
+      {"nombre": "t1.ln2b", "offset": 84160, "n": 64},
+      {"nombre": "t1.w1", "offset": 84224, "n": 8192},
+      {"nombre": "t1.w2", "offset": 92416, "n": 8192},
+      {"nombre": "t2.ln1g", "offset": 100608, "n": 64},
+      {"nombre": "t2.ln1b", "offset": 100672, "n": 64},
+      {"nombre": "t2.wqkv", "offset": 100736, "n": 12288},
+      {"nombre": "t2.wo", "offset": 113024, "n": 4096},
+      {"nombre": "t2.ln2g", "offset": 117120, "n": 64},
+      {"nombre": "t2.ln2b", "offset": 117184, "n": 64},
+      {"nombre": "t2.w1", "offset": 117248, "n": 8192},
+      {"nombre": "t2.w2", "offset": 125440, "n": 8192},
+      {"nombre": "fin.ln_g", "offset": 133632, "n": 64},
+      {"nombre": "fin.ln_b", "offset": 133696, "n": 64}
+    ]},
+    {"id": 2, "nivel": "hoja", "n_floats": 33024, "tensores": [
+      {"nombre": "e1.ln1g", "offset": 0, "n": 64},
+      {"nombre": "e1.ln1b", "offset": 64, "n": 64},
+      {"nombre": "e1.wqkv", "offset": 128, "n": 12288},
+      {"nombre": "e1.wo", "offset": 12416, "n": 4096},
+      {"nombre": "e1.ln2g", "offset": 16512, "n": 64},
+      {"nombre": "e1.ln2b", "offset": 16576, "n": 64},
+      {"nombre": "e1.w1", "offset": 16640, "n": 8192},
+      {"nombre": "e1.w2", "offset": 24832, "n": 8192}
+    ]},
+    {"id": 3, "nivel": "sft", "n_floats": 33024, "tensores": [
+      {"nombre": "sft.ln1g", "offset": 0, "n": 64},
+      {"nombre": "sft.ln1b", "offset": 64, "n": 64},
+      {"nombre": "sft.wqkv", "offset": 128, "n": 12288},
+      {"nombre": "sft.wo", "offset": 12416, "n": 4096},
+      {"nombre": "sft.ln2g", "offset": 16512, "n": 64},
+      {"nombre": "sft.ln2b", "offset": 16576, "n": 64},
+      {"nombre": "sft.w1", "offset": 16640, "n": 8192},
+      {"nombre": "sft.w2", "offset": 24832, "n": 8192}
+    ]}
+  ]
+}

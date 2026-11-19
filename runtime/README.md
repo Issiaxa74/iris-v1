@@ -7,15 +7,10 @@ JSONL que consume el entrenador. No entrena nada dentro del REPL y **nunca reesc
 el UKJ**.
 
 ```
-tú> quiero programar una API en Rust
-iris> (modo plantilla+stats: sin pesos útiles todavía) Mensaje: «quiero programar una API en Rust».
-Ruta activa: informatica › programacion (id 1).
-Modelo: UKJ v1 (p4-one) · 11 tok in · 256 B de tensores.
-Tensores: dim=64 · media=32.5000 · energía=89440.00 · huella=0000001072400000.
-TOJI[informatica]: 5 neuronas, 6 cables, activas: quiero, programar, una, api
-Neurona más activa: #1 quiero (fuerza 0.40, 1 satélites).
-Estrés: 11/12 activaciones.
-  ⤷ ruta: informatica › programacion · 3.90 · 11 tok in / 256 tok out · stats · 4 ms · ruta 1 · dim 64 · media 32.500 · 256 B en RAM
+tú> hola mundo
+iris> e e e e e e e e e e e e
+  ⤷ ruta: sft · 1.00 · 5 tok in / 12 tok out · transformer · 617 ms · trunk 14 capas · 736.2 MB · 19 tok/s ·
+ruta sft elegida por el router; el texto sale del trunk
 ```
 
 ## Estado
@@ -28,7 +23,7 @@ Estrés: 11/12 activaciones.
 | Memoria TOJI (`.mem` por sector) | Crear, cargar, guardar, fusionar, zstd |
 | Estrés por ruta | Contadores + umbral por ruta persistidos en sidecar |
 | Cola de feedback JSONL | `/si`, `/no`, `/up`, `/ent-my` con esquema v1 |
-| Motor de respuesta | **Placeholder honesto** (`template`, `stats`); el forward pass real no existe todavía |
+| Motor de respuesta | **Forward real** del trunk desde UKJ (`transformer`), con caché KV y muestreo; `template`/`stats` quedan como diagnóstico |
 
 ## Compilar y ejecutar
 
@@ -38,10 +33,12 @@ Requisitos: Rust 1.75 o superior. Sin GPU, sin servicios externos.
 cargo build --release
 cargo run --release                       # REPL con assets/test.ukj
 cargo run --release -- --ask "¿qué es una integral?" --engine stats
+cargo run --release -- --engine transformer --model assets/tiny.ukj \
+  --ask "hola mundo" --max-new 8 --temp 0
 ```
 
-Dependencias: `memmap2`, `zstd`, `serde`, `serde_json`, `anyhow` y, solo en Windows,
-`windows-sys` para leer el RSS del proceso.
+Dependencias: `memmap2`, `zstd`, `serde`, `serde_json`, `anyhow`, `rayon` y, solo en
+Windows, `windows-sys` para leer el RSS del proceso.
 
 Por defecto busca `assets/test.ukj` y `assets/iris.tok` en el directorio actual y,
 si no están, junto al ejecutable. También acepta variables de entorno:
@@ -52,7 +49,36 @@ si no están, junto al ejecutable. También acepta variables de entorno:
 | `CABRITA_TOK` | ruta del `iris.tok` |
 | `CABRITA_MEM_DIR` | directorio de sectores TOJI |
 | `CABRITA_QUEUE` | archivo JSONL de feedback |
-| `CABRITA_ENGINE` | `template` o `stats` |
+| `CABRITA_ENGINE` | `template`, `stats` o `transformer` |
+
+## Motor transformer
+
+`--engine transformer` ejecuta el forward del trunk desde el UKJ y su manifiesto
+`<modelo>.ukj.json`. Replica `src/julia/model.jl`: embeddings atados, senoidales
+absolutas, pre-LN, GELU tanh, atención causal multi-cabeza y logits contra `emb`.
+La caché KV guarda K y V por capa: cada token nuevo cuesta O(T) en atención y una
+pasada de pesos, no un forward completo.
+
+| Flag | Por defecto | Efecto |
+|---|---|---|
+| `--engine transformer` | `template` | activa el forward real |
+| `--max-new <n>` | 48 | tokens a generar |
+| `--temp <f>` | 0,9 | 0 = greedy |
+| `--top-k <n>` | 40 | 0 = sin recorte |
+| `--top-p <f>` | 0,95 | núcleo de probabilidad |
+| `--seed <n>` | reloj | muestreo reproducible |
+
+Detalles que importan:
+
+- El manifiesto es **obligatorio**: UKJ v0.1 no guarda nombres ni formas. Sin él, el
+  motor falla con un mensaje que apunta a `export_ukj.jl`.
+- Solo se carga la ruta `trunk` (736 MB en el modelo real); las hojas y `sft` no
+  entran en RAM ni en el forward.
+- Los ids del tokenizador son 0-based y el modelo usa 1-based: el motor suma 1 al
+  entrar y enmascara los ids que el BPE no puede decodificar (16384 reservados vs
+  1056 reales).
+- Al abrir usa `open_no_verify` para no recorrer 1,5 GB en cada arranque;
+  `UkjModel::verificar()` sigue disponible para herramientas.
 
 ## Estructura
 
@@ -77,9 +103,10 @@ cabrita/
 │   │   ├── mod.rs        # formato .mem, MemStore, Sector::merge
 │   │   └── memory.rs     # activación de neuronas/satélites por turno
 │   ├── feedback/mod.rs   # registros JSONL, /ent-my (txt y json/jsonl)
-│   ├── engine/mod.rs     # trait Engine + motores template y stats
+│   ├── engine/mod.rs     # trait Engine, GenOptions y registro de motores
+│   ├── engine/transformer.rs # forward real del trunk + caché KV + muestreo
 │   └── ui/mod.rs         # REPL, comandos, streaming token a token
-└── tests/cli.rs          # integración del binario (5 pruebas)
+└── tests/cli.rs          # integración del binario (7 pruebas)
 ```
 
 ## Formatos en disco
@@ -261,15 +288,17 @@ metadatos de cada turno.
 cargo test
 ```
 
-- **47 pruebas unitarias**: cabecera/tabla/checksum del UKJ, truncados y corrupción,
+- **50 pruebas unitarias**: cabecera/tabla/checksum del UKJ, truncados y corrupción,
   roundtrip del tokenizer, rutas y trampa de `estado`, formato `.mem` (con y sin
-  zstd), fusión de sectores, parser `/ent-my`, cola JSONL y sidecar de estrés.
-- **5 pruebas de integración** (`tests/cli.rs`): pregunta única por CLI, sesión de
+  zstd), fusión de sectores, parser `/ent-my`, cola JSONL, sidecar de estrés y
+  forward del transformer contra el golden de Julia (8 logits y argmax).
+- **7 pruebas de integración** (`tests/cli.rs`): pregunta única por CLI, sesión de
   REPL con todos los comandos, modo `--no-mem-write`, error claro con modelo
-  ausente y `--help`. Cada una trabaja sobre una copia temporal de los assets y
-  comprueba que el `test.ukj` queda byte a byte igual.
+  ausente, `--help`, generación con `tiny.ukj` y error claro sin manifiesto. Cada
+  una trabaja sobre una copia temporal de los assets y comprueba que el `test.ukj`
+  queda byte a byte igual.
 
-Resultado actual: `47 passed; 0 failed` + `5 passed; 0 failed`, sin warnings de
+Resultado actual: `50 passed; 0 failed` + `7 passed; 0 failed`, sin warnings de
 compilación.
 
 ## Cómo conectar el modelo entrenado
@@ -280,9 +309,13 @@ compilación.
 3. El UKJ debe cumplir el formato de arriba y el `dim` de cada ruta debe ser
    `nbytes / 4`. La tabla puede tener cualquier número de rutas y niveles; no hay
    límite codificado.
-4. El motor real se implementa sobre `EngineContext::tensors` en
-   `src/engine/mod.rs` y se registra en `engine::from_name`. Todo lo demás
-   (router, TOJI, estrés, feedback, streaming) ya está conectado.
+4. Exporta el checkpoint con `julia src/julia/export_ukj.jl` (escribe `.ukj` y
+   `.ukj.json` juntos) y arranca con `--engine transformer`. El motor resuelve
+   los tensores por nombre desde el manifiesto, carga solo la ruta `trunk` y
+   valida formas y offsets al abrir.
+5. La generación se controla con `--max-new`, `--temp`, `--top-k`, `--top-p` y
+   `--seed`. Con `--temp 0` es greedy y debe coincidir con
+   `src/julia/generate.jl`.
 
 ## Decisiones y ambigüedades documentadas
 
@@ -297,13 +330,21 @@ compilación.
   extremos en cables/fronteras) y conserva el peso máximo; los ids se remapean.
 - **Fallback del router**: `general`/`mundo`/`sft` antes que la primera ruta, para
   que el modelo no responda con una ruta temática arbitraria.
+- **Checksum al arrancar**: el motor transformer abre con `open_no_verify` porque
+  recorrer 1,5 GB en cada inicio no aporta nada; la verificación completa queda
+  como API explícita.
 - **Modo lectura**: `--no-mem-write` impide escribir `.mem` y el sidecar, útil para
   inspeccionar un modelo sin dejar rastro.
 
 ## Limitaciones conocidas
 
-- El motor es una plantilla: no inventa conocimiento, avisa de que no hay pesos
-  útiles y muestra ruta, memoria y tensores para verificar la carga.
+- El motor `transformer` siempre genera desde el **trunk**; las 16 hojas y `sft`
+  del UKJ no se usan. La ruta que elige el router se muestra, pero no cambia los
+  pesos.
+- En CPU genera ~19 tok/s con el checkpoint real (un matvec por token sobre
+  736 MB). El entrenador es más rápido porque procesa secuencias completas.
+- El muestreo enmascara ids sin token en el BPE; aun así el modelo puede producir
+  texto incoherente si está subentrenado (es el caso del checkpoint publicado).
 - El router es provisional; su calidad depende de los nombres de nivel del UKJ.
 - El TOJI implementado es un subconjunto fiel del spec: neuronas, satélites,
   anormales, cables y fronteras, pero la creación de memoria usa reglas simples

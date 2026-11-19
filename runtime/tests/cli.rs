@@ -12,7 +12,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const BIN: &str = env!("CARGO_BIN_EXE_cabrita");
 
 fn asset(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("assets").join(name)
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("assets")
+        .join(name)
 }
 
 fn temp_dir(tag: &str) -> PathBuf {
@@ -119,12 +121,24 @@ fn pregunta_unica_enruta_y_deja_el_ukj_intacto() {
     let stderr = text(&out.stderr);
     assert!(out.status.success(), "stderr: {stderr}");
 
-    assert!(stdout.contains("informatica › programacion"), "stdout: {stdout}");
-    assert!(stderr.contains("ruta: informatica › programacion"), "stderr: {stderr}");
+    assert!(
+        stdout.contains("informatica › programacion"),
+        "stdout: {stdout}"
+    );
+    assert!(
+        stderr.contains("ruta: informatica › programacion"),
+        "stderr: {stderr}"
+    );
     assert!(stdout.contains("Tensores: dim=64"), "stdout: {stdout}");
-    assert!(fx.mem.join("informatica.mem").exists(), "sector TOJI informatica");
+    assert!(
+        fx.mem.join("informatica.mem").exists(),
+        "sector TOJI informatica"
+    );
     assert!(fx.sidecar().exists(), "sidecar de estrés");
-    assert!(!fx.queue.exists(), "una pregunta suelta no debe tocar la cola");
+    assert!(
+        !fx.queue.exists(),
+        "una pregunta suelta no debe tocar la cola"
+    );
 
     let after = std::fs::read(&fx.model).expect("releer modelo");
     assert_eq!(before, after, "cabrita nunca debe reescribir el UKJ");
@@ -195,7 +209,10 @@ fn repl_comandos_escriben_cola_memoria_y_estres() {
 
     let sidecar = std::fs::read_to_string(fx.sidecar()).expect("leer sidecar");
     let json: serde_json::Value = serde_json::from_str(&sidecar).expect("sidecar JSON");
-    assert_eq!(json["overrides"]["2"], 5, "umbral por ruta persistido: {sidecar}");
+    assert_eq!(
+        json["overrides"]["2"], 5,
+        "umbral por ruta persistido: {sidecar}"
+    );
 }
 
 #[test]
@@ -203,12 +220,22 @@ fn no_reescribe_el_modelo_ni_sin_escribir_memoria() {
     let fx = Fixture::new("readonly");
     let before = std::fs::read(&fx.model).expect("leer modelo");
 
-    let out = fx.run(&["--no-mem-write", "--ask", "resuelve la integral de x"], None);
+    let out = fx.run(
+        &["--no-mem-write", "--ask", "resuelve la integral de x"],
+        None,
+    );
     assert!(out.status.success(), "{}", text(&out.stderr));
 
-    assert!(!fx.mem.exists(), "sin --no-mem-write no se crea el directorio");
+    assert!(
+        !fx.mem.exists(),
+        "sin --no-mem-write no se crea el directorio"
+    );
     assert!(!fx.sidecar().exists(), "el sidecar tampoco se escribe");
-    assert_eq!(before, std::fs::read(&fx.model).expect("releer"), "modelo intacto");
+    assert_eq!(
+        before,
+        std::fs::read(&fx.model).expect("releer"),
+        "modelo intacto"
+    );
 }
 
 #[test]
@@ -232,7 +259,10 @@ fn modelo_ausente_da_un_error_claro() {
 
     assert!(!out.status.success());
     let stderr = text(&out.stderr);
-    assert!(stderr.contains("No se pudo abrir el modelo"), "stderr: {stderr}");
+    assert!(
+        stderr.contains("No se pudo abrir el modelo"),
+        "stderr: {stderr}"
+    );
     assert!(stderr.contains("--model"), "stderr: {stderr}");
 }
 
@@ -248,4 +278,56 @@ fn ayuda_lista_los_comandos_nuevos() {
     for needle in ["/ent-my", "/merge", "/tok", "/queue", "--no-mem-write"] {
         assert!(stdout.contains(needle), "falta {needle} en --help");
     }
+}
+
+#[test]
+fn motor_transformer_genera_texto_desde_el_trunk() {
+    let fx = Fixture::new("transformer");
+    let tiny = fx.dir.join("tiny.ukj");
+    std::fs::copy(asset("tiny.ukj"), &tiny).expect("copiar tiny.ukj");
+    std::fs::copy(asset("tiny.ukj.json"), fx.dir.join("tiny.ukj.json")).expect("copiar manifiesto");
+
+    let out = Command::new(BIN)
+        .args([
+            "--model",
+            tiny.to_str().unwrap(),
+            "--tok",
+            fx.tok.to_str().unwrap(),
+            "--mem-dir",
+            fx.mem.to_str().unwrap(),
+            "--queue",
+            fx.queue.to_str().unwrap(),
+            "--engine",
+            "transformer",
+            "--max-new",
+            "6",
+            "--temp",
+            "0",
+            "--seed",
+            "1",
+            "--no-mem-write",
+            "--ask",
+            "hola mundo",
+        ])
+        .stdin(Stdio::null())
+        .output()
+        .expect("arrancar cabrita");
+
+    let stdout = text(&out.stdout);
+    let stderr = text(&out.stderr);
+    assert!(out.status.success(), "stderr: {stderr}");
+    assert!(stdout.contains("iris> hel"), "stdout: {stdout}");
+    assert!(stderr.contains("transformer"), "stderr: {stderr}");
+    assert!(stderr.contains("trunk 2 capas"), "stderr: {stderr}");
+    assert!(!fx.mem.exists(), "--no-mem-write no debe crear memoria");
+}
+
+#[test]
+fn transformer_sin_manifiesto_explica_el_export() {
+    let fx = Fixture::new("sin-manifiesto");
+    let out = fx.run(&["--engine", "transformer", "--ask", "hola"], None);
+    assert!(!out.status.success());
+    let stderr = text(&out.stderr);
+    assert!(stderr.contains("manifiesto"), "stderr: {stderr}");
+    assert!(stderr.contains("export_ukj.jl"), "stderr: {stderr}");
 }

@@ -76,6 +76,14 @@ end
 
 "temperatura + top-k + top-p -> un id (1..vocab)"
 function muestrear(lg::AbstractVector{Float32}, temp, topk, topp, max_id, rng)
+    # temp=0 -> greedy determinista sobre los ids vivos (evita Inf/NaN en softmax)
+    if temp <= 0
+        mejor = 1
+        for i in 2:min(max_id, length(lg))
+            lg[i] > lg[mejor] && (mejor = i)
+        end
+        return mejor
+    end
     v = length(lg)
     # enmascarar ids que el tokenizador no puede decodificar
     logp = Vector{Float32}(undef, v)

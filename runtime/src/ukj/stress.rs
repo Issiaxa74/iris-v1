@@ -91,7 +91,10 @@ impl StressTable {
     }
 
     pub fn threshold_for(&self, route_id: u32) -> u64 {
-        self.overrides.get(&route_id).copied().unwrap_or(self.threshold)
+        self.overrides
+            .get(&route_id)
+            .copied()
+            .unwrap_or(self.threshold)
     }
 
     pub fn threshold(&self) -> u64 {
@@ -123,7 +126,10 @@ impl StressTable {
     }
 
     pub fn activations(&self, route_id: u32) -> u64 {
-        self.counts.get(&route_id).map(|e| e.activations).unwrap_or(0)
+        self.counts
+            .get(&route_id)
+            .map(|e| e.activations)
+            .unwrap_or(0)
     }
 
     pub fn is_stressed(&self, route_id: u32) -> bool {

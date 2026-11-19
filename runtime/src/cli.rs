@@ -13,6 +13,11 @@ pub struct Config {
     pub mem_dir: PathBuf,
     pub queue: PathBuf,
     pub engine: String,
+    pub max_new: usize,
+    pub temperature: f32,
+    pub top_k: usize,
+    pub top_p: f32,
+    pub seed: Option<u64>,
     pub min_score: f32,
     pub stress_threshold: u64,
     pub stress_decay: f32,
@@ -31,6 +36,11 @@ impl Default for Config {
             mem_dir: PathBuf::from("memory"),
             queue: PathBuf::from("feedback_queue.jsonl"),
             engine: "template".to_string(),
+            max_new: 48,
+            temperature: 0.9,
+            top_k: 40,
+            top_p: 0.95,
+            seed: None,
             min_score: 0.30,
             stress_threshold: 12,
             stress_decay: 0.90,
@@ -77,7 +87,13 @@ MODELO Y MEMORIA
   --compress-mem           guarda los .mem con zstd
 
 COMPORTAMIENTO
-  --engine template|stats  motor de respuesta (por defecto template)
+  --engine template|stats|transformer
+                           motor de respuesta (por defecto template)
+  --max-new <n>            tokens a generar con el motor transformer (48)
+  --temp <f>               temperatura; 0 = greedy (0.9)
+  --top-k <n>              recorte top-k; 0 = sin recorte (40)
+  --top-p <f>              nucleo top-p, 0..1 (0.95)
+  --seed <n>               semilla del muestreo (por defecto, el reloj)
   --min-score <f>          umbral del router provisional (por defecto 0.30)
   --stress-threshold <n>   activaciones para marcar estrés (por defecto 12)
   --stress-decay <f>       decaimiento por turno, 0..1 (por defecto 0.90)
@@ -128,7 +144,8 @@ pub fn parse<I: IntoIterator<Item = String>>(args: I) -> Result<Config> {
     let mut it = args.into_iter().peekable();
     while let Some(arg) = it.next() {
         let mut value = |name: &str| -> Result<String> {
-            it.next().ok_or_else(|| anyhow::anyhow!("falta el valor de {name}"))
+            it.next()
+                .ok_or_else(|| anyhow::anyhow!("falta el valor de {name}"))
         };
         match arg.as_str() {
             "-h" | "--help" => cfg.help = true,
@@ -138,6 +155,33 @@ pub fn parse<I: IntoIterator<Item = String>>(args: I) -> Result<Config> {
             "--mem-dir" => cfg.mem_dir = PathBuf::from(value("--mem-dir")?),
             "--queue" => cfg.queue = PathBuf::from(value("--queue")?),
             "--engine" => cfg.engine = value("--engine")?,
+            "--max-new" => {
+                cfg.max_new = value("--max-new")?
+                    .parse()
+                    .map_err(|_| anyhow::anyhow!("--max-new debe ser un entero"))?
+            }
+            "--temp" | "--temperature" => {
+                cfg.temperature = value("--temp")?
+                    .parse()
+                    .map_err(|_| anyhow::anyhow!("--temp debe ser un numero"))?
+            }
+            "--top-k" => {
+                cfg.top_k = value("--top-k")?
+                    .parse()
+                    .map_err(|_| anyhow::anyhow!("--top-k debe ser un entero"))?
+            }
+            "--top-p" => {
+                cfg.top_p = value("--top-p")?
+                    .parse()
+                    .map_err(|_| anyhow::anyhow!("--top-p debe ser un numero 0..1"))?
+            }
+            "--seed" => {
+                cfg.seed = Some(
+                    value("--seed")?
+                        .parse()
+                        .map_err(|_| anyhow::anyhow!("--seed debe ser un entero"))?,
+                )
+            }
             "--min-score" => {
                 cfg.min_score = value("--min-score")?
                     .parse()
@@ -170,6 +214,15 @@ pub fn parse<I: IntoIterator<Item = String>>(args: I) -> Result<Config> {
     if !(0.0..=1.0).contains(&cfg.stress_decay) {
         bail!("--stress-decay debe estar entre 0 y 1");
     }
+    if !(0.0..=1.0).contains(&cfg.top_p) {
+        bail!("--top-p debe estar entre 0 y 1");
+    }
+    if cfg.temperature < 0.0 {
+        bail!("--temp no puede ser negativa");
+    }
+    if cfg.max_new == 0 {
+        bail!("--max-new debe ser mayor que 0");
+    }
     Ok(cfg)
 }
 
@@ -195,6 +248,31 @@ mod tests {
         assert_eq!(c.engine, "stats");
         assert_eq!(c.ask.as_deref(), Some("hola"));
         assert!(!c.write_memory);
+    }
+
+    #[test]
+    fn opciones_de_generacion() {
+        let c = parse_vec(&[
+            "--engine",
+            "transformer",
+            "--max-new",
+            "12",
+            "--temp",
+            "0",
+            "--top-k",
+            "0",
+            "--top-p",
+            "1",
+            "--seed",
+            "7",
+        ])
+        .unwrap();
+        assert_eq!(c.engine, "transformer");
+        assert_eq!(c.max_new, 12);
+        assert_eq!(c.temperature, 0.0);
+        assert_eq!(c.top_k, 0);
+        assert_eq!(c.top_p, 1.0);
+        assert_eq!(c.seed, Some(7));
     }
 
     #[test]
